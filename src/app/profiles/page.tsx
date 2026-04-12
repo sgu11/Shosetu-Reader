@@ -93,10 +93,7 @@ export default function ProfilesPage() {
       const res = await fetch("/api/profiles/active", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          profileId,
-          importGuestData,
-        }),
+        body: JSON.stringify({ profileId }),
       });
       if (res.ok) {
         await loadProfiles({ showError: false });
