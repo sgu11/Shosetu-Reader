@@ -1,4 +1,4 @@
-# PROGRESS.md
+# Progress
 
 Last updated: 2026-04-12
 
@@ -20,7 +20,7 @@ Last updated: 2026-04-12
 
 ---
 
-## Acceptance Criteria (goal.md §7)
+## Acceptance Criteria (v1-goal.md §7)
 
 | Criterion | Status | Notes |
 |-----------|--------|-------|

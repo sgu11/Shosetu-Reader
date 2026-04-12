@@ -3,6 +3,7 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
+      # Development defaults — change in production
       POSTGRES_USER: shosetu
       POSTGRES_PASSWORD: shosetu
       POSTGRES_DB: shosetu_reader
@@ -40,7 +41,6 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://shosetu:shosetu@db:5432/shosetu_reader
       REDIS_URL: redis://redis:6379
-      APP_URL: https://narou.oci.lidlesseye.net
     depends_on:
       db:
         condition: service_healthy
@@ -57,7 +57,6 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://shosetu:shosetu@db:5432/shosetu_reader
       REDIS_URL: redis://redis:6379
-      APP_URL: https://narou.oci.lidlesseye.net
     depends_on:
       db:
         condition: service_healthy

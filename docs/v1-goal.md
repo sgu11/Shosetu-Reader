@@ -1,4 +1,4 @@
-# GOAL.md
+# V1 Goal
 
 ## 1. Product Goal
 

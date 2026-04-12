@@ -1,4 +1,4 @@
-# IMPLEMENTATION_PLAN.md
+# V1 Implementation Plan
 
 ## 1. Objective
 
@@ -92,7 +92,7 @@ Deliverable:
 - source episodes are readable in a stable web reader
 
 ### Phase 3.5. Design System Integration
-- adopt dark-mode-native design tokens from DESIGN_STYLE.md (Supabase-inspired)
+- adopt dark-mode-native design tokens from v1-design-style.md (Supabase-inspired)
 - replace warm cream/brown palette with near-black backgrounds and emerald green accents
 - switch UI font to Inter (geometric sans-serif as Circular substitute)
 - add Source Code Pro for monospace technical labels
@@ -102,7 +102,7 @@ Deliverable:
 - refactor all existing pages and components to match design system
 
 Deliverable:
-- consistent dark-mode-native UI across all screens following DESIGN_STYLE.md
+- consistent dark-mode-native UI across all screens following v1-design-style.md
 
 ### Phase 4. Library and Progress
 - implement subscribe and unsubscribe endpoints

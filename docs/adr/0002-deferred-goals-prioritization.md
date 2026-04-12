@@ -16,7 +16,7 @@ visual polish:
 - light theme
 
 Some of these are still required to satisfy the original technical baseline in
-`goal.md`, while others are valid but lower priority.
+`v1-goal.md`, while others are valid but lower priority.
 
 ## Decision
 

@@ -1,10 +1,10 @@
-# ARCHITECTURE.md
+# V1 Architecture
 
 ## 1. Purpose
 
 This document defines the technical architecture for the Syosetu-based web novel reading platform.
 
-It translates the requirements from `GOAL.md` and the product rules from `DESIGN.md` into a concrete system design.
+It translates the requirements from `v1-goal.md` and the product rules from `v1-design.md` into a concrete system design.
 
 Current scope:
 - native web application

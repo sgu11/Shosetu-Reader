@@ -1,4 +1,4 @@
-# DESIGN.md
+# V1 Design
 
 ## 1. Purpose
 

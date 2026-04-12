@@ -104,7 +104,7 @@ need in code, and the order that reduces rework.
 - **Durable queue + worker** is still a required goal, not optional polish.
   The current inline queue is useful for local iteration but it is still tied to
   the app process and cannot satisfy the original reliability baseline in
-  `goal.md`.
+  `v1-goal.md`.
 - **Live updates** are still valid, but the transport decision has changed.
   Polling now covers the core product loop well enough that SSE/WebSocket is no
   longer the immediate requirement.
@@ -174,6 +174,6 @@ need in code, and the order that reduces rework.
 The repo is ready to move into V2 feature implementation when:
 - user resolution no longer depends on direct imports of the default-user helper
 - background jobs no longer depend on direct request-scoped fire-and-forget code
-- V2 scope and execution order are documented in `PROGRESS.md`
+- V2 scope and execution order are documented in `progress.md`
 - the architecture and decisions are documented in `docs/`
 - baseline verification remains green after scaffolding changes

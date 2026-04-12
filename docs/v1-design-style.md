@@ -1,4 +1,4 @@
-# Design System Inspired by Supabase
+# V1 Design Style (Supabase-Inspired)
 
 ## 1. Visual Theme & Atmosphere
 
