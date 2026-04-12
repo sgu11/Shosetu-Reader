@@ -17,8 +17,12 @@ interface Props {
   translatedByModel: ModelCount[];
 }
 
-function formatCost(usd: number | null): string | null {
+function formatCost(usd: number | null, locale: "en" | "ko"): string | null {
   if (usd == null) return null;
+  if (locale === "ko") {
+    const krw = usd * 1500;
+    return `${krw.toFixed(1)}원`;
+  }
   if (usd < 0.01) return `$${usd.toFixed(4)}`;
   return `$${usd.toFixed(2)}`;
 }
@@ -34,7 +38,7 @@ export function NovelTranslationInventory({
   translatedByModel,
 }: Props) {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
   async function discardTranslations(modelName?: string) {
@@ -75,9 +79,9 @@ export function NovelTranslationInventory({
         <span className="rounded-full bg-success/10 px-3 py-1 text-xs text-success">
           {t("translation.availableCount")} {translatedEpisodes}
         </span>
-        {formatCost(totalCostUsd) && (
+        {formatCost(totalCostUsd, locale) && (
           <span className="rounded-full bg-surface-strong px-3 py-1 text-xs text-muted">
-            {t("translation.totalCost")} {formatCost(totalCostUsd)}
+            {t("translation.totalCost")} {formatCost(totalCostUsd, locale)}
           </span>
         )}
         <button
@@ -105,9 +109,9 @@ export function NovelTranslationInventory({
                 </p>
                 <p className="text-xs text-muted">
                   {t("translation.availableCount")} {model.translatedEpisodes}
-                  {formatCost(model.totalCostUsd) && (
+                  {formatCost(model.totalCostUsd, locale) && (
                     <span className="ml-2 text-muted/60">
-                      {formatCost(model.totalCostUsd)}
+                      {formatCost(model.totalCostUsd, locale)}
                     </span>
                   )}
                 </p>

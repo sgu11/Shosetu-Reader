@@ -6,8 +6,12 @@ function shortModelName(modelName: string): string {
   return modelName.split("/").pop() ?? modelName;
 }
 
-function formatCost(usd: number | null): string | null {
+function formatCost(usd: number | null, locale: "en" | "ko"): string | null {
   if (usd == null) return null;
+  if (locale === "ko") {
+    const krw = usd * 1500;
+    return `${krw.toFixed(1)}원`;
+  }
   if (usd < 0.01) return `$${usd.toFixed(4)}`;
   return `$${usd.toFixed(2)}`;
 }
@@ -77,9 +81,9 @@ export default async function LibraryPage() {
                   <span className="rounded-full bg-success/10 px-2.5 py-1 text-success">
                     {t(locale, "status.translated")} {item.statusOverview.translatedEpisodes}
                   </span>
-                  {formatCost(item.statusOverview.totalCostUsd) && (
+                  {formatCost(item.statusOverview.totalCostUsd, locale) && (
                     <span className="rounded-full bg-surface-strong px-2.5 py-1">
-                      {formatCost(item.statusOverview.totalCostUsd)}
+                      {formatCost(item.statusOverview.totalCostUsd, locale)}
                     </span>
                   )}
                   {item.statusOverview.translatedByModel.slice(0, 3).map((model) => (

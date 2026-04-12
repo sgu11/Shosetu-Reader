@@ -18,8 +18,12 @@ interface AvailableTranslation {
   estimatedCostUsd?: number | null;
 }
 
-function formatCost(usd: number | null | undefined): string | null {
+function formatCost(usd: number | null | undefined, locale: "en" | "ko"): string | null {
   if (usd == null) return null;
+  if (locale === "ko") {
+    const krw = usd * 1500;
+    return `${krw.toFixed(1)}원`;
+  }
   if (usd < 0.01) return `$${usd.toFixed(4)}`;
   return `$${usd.toFixed(2)}`;
 }
@@ -46,7 +50,7 @@ export function TranslationToggle({
   availableTranslations: initialAvailable,
   pendingTranslation: initialPendingTranslation,
 }: Props) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [language, setLanguage] = useState<"ja" | "ko">(
     initialLanguage === "ko" && initialTranslation?.status === "available" ? "ko" : "ja",
   );
@@ -380,8 +384,8 @@ export function TranslationToggle({
                     >
                       <span className="truncate">{short}</span>
                       <span className="ml-2 flex shrink-0 items-center gap-1.5">
-                        {formatCost(tr.estimatedCostUsd) && (
-                          <span className="text-muted/50">{formatCost(tr.estimatedCostUsd)}</span>
+                        {formatCost(tr.estimatedCostUsd, locale) && (
+                          <span className="text-muted/50">{formatCost(tr.estimatedCostUsd, locale)}</span>
                         )}
                         {isActive && (
                           <span className="text-accent">&#10003;</span>
