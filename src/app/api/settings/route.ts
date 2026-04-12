@@ -46,9 +46,9 @@ export async function GET(req: NextRequest) {
       reader: prefs ?? {
         fontSize: "medium",
         lineHeight: "1.8",
-        contentWidth: "680",
-        fontFamily: "noto-serif-jp",
-        fontWeight: "normal",
+        contentWidth: "800",
+        fontFamily: "nanum-myeongjo",
+        fontWeight: "bold",
         themeOverride: null,
       },
     });
@@ -85,7 +85,7 @@ export async function PUT(req: NextRequest) {
     // Upsert reader preferences (allowlist values to prevent CSS injection)
     const ALLOWED_FONT_FAMILIES = new Set(["noto-serif-jp", "nanum-myeongjo", "nanum-gothic", "pretendard"]);
     const ALLOWED_FONT_WEIGHTS = new Set(["normal", "bold"]);
-    const ALLOWED_FONT_SIZES = new Set(["small", "medium", "large"]);
+    const ALLOWED_FONT_SIZES = new Set(["small", "medium", "large", "xlarge"]);
     const ALLOWED_THEME_OVERRIDES = new Set(["light", "dark"]);
 
     if (reader) {

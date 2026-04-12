@@ -32,10 +32,10 @@
 
   /* Reader defaults (overridden by ReaderSettings component) */
   --reader-font-size: 16px;
-  --reader-line-height: 2;
-  --reader-content-width: 672px;
-  --reader-font-family: var(--font-reader), serif;
-  --reader-font-weight: 400;
+  --reader-line-height: 1.8;
+  --reader-content-width: 800px;
+  --reader-font-family: 'Nanum Myeongjo', serif;
+  --reader-font-weight: 700;
 }
 
 @theme inline {

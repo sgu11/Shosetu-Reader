@@ -2,6 +2,7 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { subscriptions, novels, readingProgress, episodes } from "@/lib/db/schema";
 import { ensureDefaultUser } from "@/lib/auth/default-user";
+import { translateTexts } from "@/lib/translate-cache";
 import type { LibraryItem } from "../api/schemas";
 
 export async function getLibrary(): Promise<{
@@ -80,9 +81,11 @@ export async function getContinueReading(): Promise<
   Array<{
     novelId: string;
     titleJa: string;
+    titleKo: string | null;
     episodeId: string;
     episodeNumber: number;
     episodeTitle: string | null;
+    episodeTitleKo: string | null;
     lastReadAt: string;
   }>
 > {
@@ -134,5 +137,18 @@ export async function getContinueReading(): Promise<
     }
   }
 
-  return result;
+  // Batch-translate novel titles and episode titles
+  const textsToTranslate = [
+    ...result.map((r) => r.titleJa),
+    ...result.map((r) => r.episodeTitle).filter((t): t is string => t != null),
+  ];
+  const cache = textsToTranslate.length > 0
+    ? await translateTexts(textsToTranslate)
+    : new Map<string, string>();
+
+  return result.map((r) => ({
+    ...r,
+    titleKo: cache.get(r.titleJa) ?? null,
+    episodeTitleKo: r.episodeTitle ? (cache.get(r.episodeTitle) ?? null) : null,
+  }));
 }

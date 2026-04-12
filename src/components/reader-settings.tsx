@@ -49,9 +49,9 @@ export function ReaderSettings() {
   const [prefs, setPrefs] = useState<ReaderPrefs>({
     fontSize: "medium",
     lineHeight: "1.8",
-    contentWidth: "680",
-    fontFamily: "noto-serif-jp",
-    fontWeight: "normal",
+    contentWidth: "800",
+    fontFamily: "nanum-myeongjo",
+    fontWeight: "bold",
   });
   const [saving, setSaving] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -65,9 +65,9 @@ export function ReaderSettings() {
           const loaded: ReaderPrefs = {
             fontSize: data.reader.fontSize ?? "medium",
             lineHeight: data.reader.lineHeight ?? "1.8",
-            contentWidth: data.reader.contentWidth ?? "680",
-            fontFamily: data.reader.fontFamily ?? "noto-serif-jp",
-            fontWeight: data.reader.fontWeight ?? "normal",
+            contentWidth: data.reader.contentWidth ?? "800",
+            fontFamily: data.reader.fontFamily ?? "nanum-myeongjo",
+            fontWeight: data.reader.fontWeight ?? "bold",
           };
           setPrefs(loaded);
           applyStyles(loaded);

@@ -44,12 +44,19 @@ export default async function Home() {
                 className="surface-card flex items-center justify-between rounded-xl px-6 py-4 transition-colors hover:border-border-strong hover:bg-surface-strong"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {item.titleJa}
-                  </p>
+                  {locale === "ko" && item.titleKo ? (
+                    <>
+                      <p className="truncate text-sm font-medium">{item.titleKo}</p>
+                      <p className="truncate text-xs text-muted/60">{item.titleJa}</p>
+                    </>
+                  ) : (
+                    <p className="truncate text-sm font-medium">{item.titleJa}</p>
+                  )}
                   <p className="text-xs text-muted">
                     #{item.episodeNumber}
-                    {item.episodeTitle && ` — ${item.episodeTitle}`}
+                    {locale === "ko" && item.episodeTitleKo
+                      ? ` — ${item.episodeTitleKo}`
+                      : item.episodeTitle && ` — ${item.episodeTitle}`}
                   </p>
                 </div>
                 <span className="ml-4 shrink-0 text-xs text-muted">
