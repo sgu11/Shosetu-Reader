@@ -12,6 +12,12 @@ function shortModelName(modelName: string): string {
   return modelName.split("/").pop() ?? modelName;
 }
 
+function formatCost(usd: number | null): string | null {
+  if (usd == null) return null;
+  if (usd < 0.01) return `$${usd.toFixed(4)}`;
+  return `$${usd.toFixed(2)}`;
+}
+
 interface Props {
   params: Promise<{ novelId: string }>;
 }
@@ -100,6 +106,11 @@ export default async function NovelDetailPage({ params }: Props) {
           <span className="rounded-full bg-success/10 px-3 py-1 text-success">
             {t(locale, "status.translated")} {novel.statusOverview.translatedEpisodes}
           </span>
+          {formatCost(novel.statusOverview.totalCostUsd) && (
+            <span className="rounded-full bg-surface-strong px-3 py-1 text-muted">
+              {t(locale, "translation.totalCost")} {formatCost(novel.statusOverview.totalCostUsd)}
+            </span>
+          )}
           {novel.statusOverview.translatedByModel.map((model) => (
             <span
               key={model.modelName}
@@ -133,6 +144,7 @@ export default async function NovelDetailPage({ params }: Props) {
       <NovelTranslationInventory
         novelId={novelId}
         translatedEpisodes={novel.statusOverview.translatedEpisodes}
+        totalCostUsd={novel.statusOverview.totalCostUsd}
         translatedByModel={novel.statusOverview.translatedByModel}
       />
 

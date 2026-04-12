@@ -18,6 +18,7 @@ export const translationRecordSchema = z.object({
   modelName: z.string(),
   errorMessage: z.string().nullable(),
   completedAt: z.string().datetime().nullable(),
+  estimatedCostUsd: z.number().nullable(),
 });
 
 export type TranslationRecord = z.infer<typeof translationRecordSchema>;

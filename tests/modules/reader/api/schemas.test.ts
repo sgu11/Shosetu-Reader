@@ -29,6 +29,7 @@ describe("readerPayloadSchema", () => {
           id: "550e8400-e29b-41d4-a716-446655440002",
           modelName: "google/gemini-2.5-flash-lite",
           completedAt: "2026-04-11T01:00:00.000Z",
+          estimatedCostUsd: 0.0008,
         },
       ],
       pendingTranslation: {

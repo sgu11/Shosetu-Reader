@@ -8,6 +8,8 @@ export interface TranslationResult {
   translatedText: string;
   provider: string;
   modelName: string;
+  inputTokens?: number;
+  outputTokens?: number;
 }
 
 export interface TranslationProvider {

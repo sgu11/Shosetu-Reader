@@ -28,6 +28,7 @@ export async function getTranslationStatus(
     modelName: r.modelName,
     errorMessage: r.errorMessage,
     completedAt: r.completedAt?.toISOString() ?? null,
+    estimatedCostUsd: r.estimatedCostUsd,
   }));
 
   if (rows.length === 0) {

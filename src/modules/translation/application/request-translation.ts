@@ -4,6 +4,7 @@ import { episodes, translations, translationSettings, novelTranslationPrompts } 
 import { env } from "@/lib/env";
 import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
 import { OpenRouterProvider } from "../infra/openrouter-provider";
+import { estimateCost } from "./cost-estimation";
 
 const PROMPT_VERSION = "v2";
 
@@ -177,11 +178,18 @@ async function processTranslation(
       targetLanguage: "ko",
     });
 
+    const costUsd = (result.inputTokens != null && result.outputTokens != null)
+      ? await estimateCost(provider.modelName, result.inputTokens, result.outputTokens)
+      : null;
+
     await db
       .update(translations)
       .set({
         status: "available",
         translatedText: result.translatedText,
+        inputTokens: result.inputTokens ?? null,
+        outputTokens: result.outputTokens ?? null,
+        estimatedCostUsd: costUsd,
         completedAt: new Date(),
         updatedAt: new Date(),
       })

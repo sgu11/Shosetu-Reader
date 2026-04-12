@@ -6,6 +6,12 @@ function shortModelName(modelName: string): string {
   return modelName.split("/").pop() ?? modelName;
 }
 
+function formatCost(usd: number | null): string | null {
+  if (usd == null) return null;
+  if (usd < 0.01) return `$${usd.toFixed(4)}`;
+  return `$${usd.toFixed(2)}`;
+}
+
 export default async function LibraryPage() {
   const locale = await getLocale();
   const { items, totalCount } = await getLibrary();
@@ -71,6 +77,11 @@ export default async function LibraryPage() {
                   <span className="rounded-full bg-success/10 px-2.5 py-1 text-success">
                     {t(locale, "status.translated")} {item.statusOverview.translatedEpisodes}
                   </span>
+                  {formatCost(item.statusOverview.totalCostUsd) && (
+                    <span className="rounded-full bg-surface-strong px-2.5 py-1">
+                      {formatCost(item.statusOverview.totalCostUsd)}
+                    </span>
+                  )}
                   {item.statusOverview.translatedByModel.slice(0, 3).map((model) => (
                     <span
                       key={model.modelName}

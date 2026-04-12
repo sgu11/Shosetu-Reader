@@ -20,10 +20,12 @@ describe("novelResponseSchema", () => {
       statusOverview: {
         fetchedEpisodes: 12,
         translatedEpisodes: 5,
+        totalCostUsd: 0.0042,
         translatedByModel: [
           {
             modelName: "google/gemini-2.5-flash-lite",
             translatedEpisodes: 5,
+            totalCostUsd: 0.0042,
           },
         ],
       },

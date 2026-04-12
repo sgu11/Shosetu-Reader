@@ -96,6 +96,8 @@ export class OpenRouterProvider implements TranslationProvider {
         translatedText: content.trim(),
         provider: this.provider,
         modelName: this.modelName,
+        inputTokens: data.usage?.prompt_tokens ?? undefined,
+        outputTokens: data.usage?.completion_tokens ?? undefined,
       };
     }
 

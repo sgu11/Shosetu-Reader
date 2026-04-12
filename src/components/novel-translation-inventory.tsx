@@ -7,12 +7,20 @@ import { useTranslation } from "@/lib/i18n/client";
 interface ModelCount {
   modelName: string;
   translatedEpisodes: number;
+  totalCostUsd: number | null;
 }
 
 interface Props {
   novelId: string;
   translatedEpisodes: number;
+  totalCostUsd: number | null;
   translatedByModel: ModelCount[];
+}
+
+function formatCost(usd: number | null): string | null {
+  if (usd == null) return null;
+  if (usd < 0.01) return `$${usd.toFixed(4)}`;
+  return `$${usd.toFixed(2)}`;
 }
 
 function shortModelName(modelName: string): string {
@@ -22,6 +30,7 @@ function shortModelName(modelName: string): string {
 export function NovelTranslationInventory({
   novelId,
   translatedEpisodes,
+  totalCostUsd,
   translatedByModel,
 }: Props) {
   const router = useRouter();
@@ -66,6 +75,11 @@ export function NovelTranslationInventory({
         <span className="rounded-full bg-success/10 px-3 py-1 text-xs text-success">
           {t("translation.availableCount")} {translatedEpisodes}
         </span>
+        {formatCost(totalCostUsd) && (
+          <span className="rounded-full bg-surface-strong px-3 py-1 text-xs text-muted">
+            {t("translation.totalCost")} {formatCost(totalCostUsd)}
+          </span>
+        )}
         <button
           type="button"
           onClick={() => discardTranslations()}
@@ -91,6 +105,11 @@ export function NovelTranslationInventory({
                 </p>
                 <p className="text-xs text-muted">
                   {t("translation.availableCount")} {model.translatedEpisodes}
+                  {formatCost(model.totalCostUsd) && (
+                    <span className="ml-2 text-muted/60">
+                      {formatCost(model.totalCostUsd)}
+                    </span>
+                  )}
                 </p>
               </div>
 

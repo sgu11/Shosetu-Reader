@@ -31,6 +31,7 @@ export const readerPayloadSchema = z.object({
       id: z.string().uuid(),
       modelName: z.string(),
       completedAt: z.string().nullable(),
+      estimatedCostUsd: z.number().nullable(),
     }),
   ),
   pendingTranslation: pendingTranslationSchema.nullable(),

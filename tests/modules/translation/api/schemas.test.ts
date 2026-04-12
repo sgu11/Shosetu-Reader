@@ -44,6 +44,7 @@ describe("translationStatusResponseSchema", () => {
           modelName: "gpt-4o",
           errorMessage: null,
           completedAt: "2026-04-10T12:00:00.000Z",
+          estimatedCostUsd: 0.0015,
         },
       ],
     });

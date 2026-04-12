@@ -3,11 +3,13 @@ import { z } from "zod";
 export const translationModelCountSchema = z.object({
   modelName: z.string(),
   translatedEpisodes: z.number().int(),
+  totalCostUsd: z.number().nullable(),
 });
 
 export const novelStatusOverviewSchema = z.object({
   fetchedEpisodes: z.number().int(),
   translatedEpisodes: z.number().int(),
+  totalCostUsd: z.number().nullable(),
   translatedByModel: z.array(translationModelCountSchema),
 });
 

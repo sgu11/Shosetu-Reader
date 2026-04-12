@@ -15,6 +15,13 @@ interface AvailableTranslation {
   id: string;
   modelName: string;
   completedAt: string | null;
+  estimatedCostUsd?: number | null;
+}
+
+function formatCost(usd: number | null | undefined): string | null {
+  if (usd == null) return null;
+  if (usd < 0.01) return `$${usd.toFixed(4)}`;
+  return `$${usd.toFixed(2)}`;
 }
 
 interface PendingTranslation {
@@ -93,10 +100,11 @@ export function TranslationToggle({
         setAvailable(
           data.translations
             .filter((tr: { status: string }) => tr.status === "available")
-            .map((tr: { id: string; modelName: string; completedAt: string | null }) => ({
+            .map((tr: { id: string; modelName: string; completedAt: string | null; estimatedCostUsd?: number | null }) => ({
               id: tr.id,
               modelName: tr.modelName,
               completedAt: tr.completedAt,
+              estimatedCostUsd: tr.estimatedCostUsd ?? null,
             })),
         );
       }
@@ -371,9 +379,14 @@ export function TranslationToggle({
                       title={tr.modelName}
                     >
                       <span className="truncate">{short}</span>
-                      {isActive && (
-                        <span className="ml-2 shrink-0 text-accent">&#10003;</span>
-                      )}
+                      <span className="ml-2 flex shrink-0 items-center gap-1.5">
+                        {formatCost(tr.estimatedCostUsd) && (
+                          <span className="text-muted/50">{formatCost(tr.estimatedCostUsd)}</span>
+                        )}
+                        {isActive && (
+                          <span className="text-accent">&#10003;</span>
+                        )}
+                      </span>
                     </button>
                     <button
                       type="button"

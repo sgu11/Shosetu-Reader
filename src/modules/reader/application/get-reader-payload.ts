@@ -141,6 +141,7 @@ export async function getReaderPayload(
         id: t.id,
         modelName: t.modelName,
         completedAt: t.completedAt?.toISOString() ?? null,
+        estimatedCostUsd: t.estimatedCostUsd,
       })),
     pendingTranslation: pendingTranslation
       ? {

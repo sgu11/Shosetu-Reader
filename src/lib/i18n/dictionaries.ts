@@ -112,6 +112,11 @@ export const dictionaries = {
     "translation.confirmDiscardSingle": "Discard this saved translation?",
     "translation.confirmDiscardAll": "Discard all saved Korean translations for this novel?",
     "translation.confirmDiscardModel": "Discard saved translations for model {model}?",
+    "translation.totalCost": "Total cost",
+    "translation.costLabel": "Cost",
+    "translation.costValue": "${cost}",
+    "translation.costNotAvailable": "Cost N/A",
+    "translation.modelCount": "{count} models",
 
     // Ranking
     "ranking.title": "Ranking",
@@ -311,6 +316,11 @@ export const dictionaries = {
     "translation.confirmDiscardSingle": "이 저장된 번역을 삭제할까요?",
     "translation.confirmDiscardAll": "이 작품의 저장된 한국어 번역을 모두 삭제할까요?",
     "translation.confirmDiscardModel": "모델 {model}의 저장된 번역을 삭제할까요?",
+    "translation.totalCost": "총 비용",
+    "translation.costLabel": "비용",
+    "translation.costValue": "${cost}",
+    "translation.costNotAvailable": "비용 정보 없음",
+    "translation.modelCount": "{count}개 모델",
 
     // Ranking
     "ranking.title": "랭킹",

@@ -1,5 +1,7 @@
 import {
+  integer,
   pgTable,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -24,6 +26,9 @@ export const translations = pgTable(
     sourceChecksum: text("source_checksum").notNull(),
     status: translationStatusEnum().notNull().default("queued"),
     translatedText: text("translated_text"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    estimatedCostUsd: real("estimated_cost_usd"),
     errorCode: text("error_code"),
     errorMessage: text("error_message"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
