@@ -237,20 +237,24 @@ export function IngestButton({ novelId }: Props) {
         )}
       </div>
 
-      <p
+      <div
         aria-live="polite"
-        className={`text-xs transition-opacity ${
-          result
-            ? resultTone === "error"
-              ? "text-error opacity-100"
-              : resultTone === "success"
-                ? "text-success opacity-100"
-                : "text-muted opacity-100"
-            : "opacity-0"
+        className={`overflow-hidden transition-all duration-200 ${
+          result ? "max-h-10 opacity-100" : "max-h-0 opacity-0"
         }`}
       >
-        {result ?? "\u00A0"}
-      </p>
+        <p
+          className={`text-xs ${
+            resultTone === "error"
+              ? "text-error"
+              : resultTone === "success"
+                ? "text-success"
+                : "text-muted"
+          }`}
+        >
+          {result ?? "\u00A0"}
+        </p>
+      </div>
     </div>
   );
 }
