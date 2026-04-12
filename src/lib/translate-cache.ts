@@ -58,48 +58,59 @@ export async function translateTexts(
 
 async function translateBatch(texts: string[]): Promise<string[]> {
   const numbered = texts.map((t, i) => `${i + 1}. ${t}`).join("\n");
+  const MAX_RETRIES = 3;
+  const RETRYABLE = new Set([429, 502, 503, 504]);
 
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://shosetu-reader.local",
-      "X-Title": "Shosetu Reader",
-    },
-    body: JSON.stringify({
-      model: env.OPENROUTER_DEFAULT_MODEL,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a Japanese-to-Korean translator. Translate the given Japanese texts naturally into Korean. Keep character names in their original form. Output ONLY the numbered list of translated texts, one per line, matching the input numbering exactly. No explanations.",
-        },
-        {
-          role: "user",
-          content: `Translate these Japanese texts to Korean:\n\n${numbered}`,
-        },
-      ],
-      temperature: 0.3,
-      max_tokens: 4096,
-    }),
-  });
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://shosetu-reader.local",
+        "X-Title": "Shosetu Reader",
+      },
+      body: JSON.stringify({
+        model: env.OPENROUTER_DEFAULT_MODEL,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a Japanese-to-Korean translator. Translate the given Japanese texts naturally into Korean. Keep character names in their original form. Output ONLY the numbered list of translated texts, one per line, matching the input numbering exactly. No explanations.",
+          },
+          {
+            role: "user",
+            content: `Translate these Japanese texts to Korean:\n\n${numbered}`,
+          },
+        ],
+        temperature: 0.3,
+        max_tokens: 4096,
+      }),
+    });
 
-  if (!res.ok) {
-    console.error("OpenRouter batch translation failed:", res.status);
-    return texts;
-  }
-
-  const data = await res.json();
-  const content: string = data.choices?.[0]?.message?.content ?? "";
-
-  const translated: Record<number, string> = {};
-  for (const line of content.split("\n")) {
-    const match = line.match(/^(\d+)\.\s*(.+)/);
-    if (match) {
-      translated[parseInt(match[1], 10) - 1] = match[2].trim();
+    if (!res.ok) {
+      if (RETRYABLE.has(res.status) && attempt < MAX_RETRIES) {
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      console.error("OpenRouter batch translation failed:", res.status);
+      return texts;
     }
+
+    const data = await res.json();
+    const content: string = data.choices?.[0]?.message?.content ?? "";
+
+    const translated: Record<number, string> = {};
+    for (const line of content.split("\n")) {
+      const match = line.match(/^(\d+)\.\s*(.+)/);
+      if (match) {
+        translated[parseInt(match[1], 10) - 1] = match[2].trim();
+      }
+    }
+
+    return texts.map((original, i) => translated[i] ?? original);
   }
 
-  return texts.map((original, i) => translated[i] ?? original);
+  return texts;
 }

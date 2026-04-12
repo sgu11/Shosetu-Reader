@@ -95,6 +95,19 @@ export async function requestTranslation(
     .limit(1);
 
   if (existing) {
+    // Allow retrying failed translations
+    if (existing.status === "failed") {
+      await db
+        .update(translations)
+        .set({ status: "queued", errorCode: null, errorMessage: null, updatedAt: new Date() })
+        .where(eq(translations.id, existing.id));
+
+      processTranslation(existing.id, episode.normalizedTextJa, provider).catch(
+        () => {},
+      );
+
+      return { translationId: existing.id, status: "queued" };
+    }
     return { translationId: existing.id, status: existing.status };
   }
 

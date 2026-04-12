@@ -47,46 +47,58 @@ export class OpenRouterProvider implements TranslationProvider {
   }
 
   async translate(request: TranslationRequest): Promise<TranslationResult> {
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://shosetu-reader.local",
-        "X-Title": "Shosetu Reader",
-      },
-      body: JSON.stringify({
-        model: this.modelName,
-        messages: [
-          { role: "system", content: this.buildSystemPrompt() },
-          {
-            role: "user",
-            content: `Translate the following Japanese text to Korean:\n\n${request.sourceText}`,
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 8192,
-      }),
-    });
+    const MAX_RETRIES = 3;
+    const RETRYABLE = new Set([429, 502, 503, 504]);
 
-    if (!res.ok) {
-      const errorBody = await res.text();
-      throw new Error(
-        `OpenRouter API error ${res.status}: ${errorBody.slice(0, 200)}`,
-      );
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://shosetu-reader.local",
+          "X-Title": "Shosetu Reader",
+        },
+        body: JSON.stringify({
+          model: this.modelName,
+          messages: [
+            { role: "system", content: this.buildSystemPrompt() },
+            {
+              role: "user",
+              content: `Translate the following Japanese text to Korean:\n\n${request.sourceText}`,
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 8192,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorBody = await res.text();
+        if (RETRYABLE.has(res.status) && attempt < MAX_RETRIES) {
+          const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+        throw new Error(
+          `OpenRouter API error ${res.status}: ${errorBody.slice(0, 200)}`,
+        );
+      }
+
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content;
+
+      if (!content) {
+        throw new Error("No translation content in OpenRouter response");
+      }
+
+      return {
+        translatedText: content.trim(),
+        provider: this.provider,
+        modelName: this.modelName,
+      };
     }
 
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error("No translation content in OpenRouter response");
-    }
-
-    return {
-      translatedText: content.trim(),
-      provider: this.provider,
-      modelName: this.modelName,
-    };
+    throw new Error("Max retries exceeded");
   }
 }
