@@ -322,7 +322,7 @@ export function TranslationToggle({
   const otherModels = available.filter((a) => a.modelName !== displayModel);
 
   return (
-    <div className="space-y-2">
+    <div className="relative">
       <div className="flex flex-wrap items-center gap-2 min-h-[2rem]">
         <div className="flex rounded-full border border-border p-0.5">
           <button
@@ -487,19 +487,23 @@ export function TranslationToggle({
         </div>
       </div>
 
-      <p
+      <div
         aria-live="polite"
-        className={`text-xs transition-opacity ${
-          feedback
-            ? feedback.tone === "error" ? "text-error opacity-100" : "text-muted opacity-100"
-            : "opacity-0"
+        className={`overflow-hidden transition-all duration-200 ${
+          feedback ? "max-h-6 opacity-100 mt-1" : "max-h-0 opacity-0"
         }`}
       >
-        {feedback?.message ?? "\u00A0"}
-      </p>
+        <p
+          className={`text-xs ${
+            feedback?.tone === "error" ? "text-error" : "text-muted"
+          }`}
+        >
+          {feedback?.message ?? "\u00A0"}
+        </p>
+      </div>
 
       {pendingTranslation?.status === "processing" && pendingTranslation.progressEstimate && (
-        <div className="space-y-1 rounded-lg border border-border bg-background px-3 py-2">
+        <div className="absolute left-0 right-0 top-full z-10 mt-1 space-y-1 rounded-lg border border-border bg-background px-3 py-2 shadow-sm">
           <div className="flex items-center justify-between gap-3 text-xs text-muted">
             <span>
               {t("translation.etaLabel")}{" "}
