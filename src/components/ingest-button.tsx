@@ -110,6 +110,15 @@ export function IngestButton({ novelId }: Props) {
       }
     });
 
+  const handleGenerateGlossary = () =>
+    run(async () => {
+      const res = await fetch(`/api/novels/${novelId}/glossary`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { setResult(`Error: ${data.error}`); return; }
+      setResult(t("glossary.generatedInfo", { episodes: data.episodeCount, date: new Date().toLocaleDateString() }));
+      router.refresh();
+    });
+
   return (
     <div className="space-y-2">
       <div className="relative inline-block" ref={menuRef}>
@@ -169,6 +178,17 @@ export function IngestButton({ novelId }: Props) {
               className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-muted transition-colors hover:text-foreground hover:bg-surface-strong"
             >
               {t("ingest.bulkTranslateAll")}
+            </button>
+
+            <div className="my-1 border-t border-border" />
+
+            <p className="px-3 py-1.5 text-xs font-medium text-muted/60">{t("glossary.title")}</p>
+            <button
+              type="button"
+              onClick={handleGenerateGlossary}
+              className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-muted transition-colors hover:text-foreground hover:bg-surface-strong"
+            >
+              {t("glossary.generateAction")}
             </button>
           </div>
         )}

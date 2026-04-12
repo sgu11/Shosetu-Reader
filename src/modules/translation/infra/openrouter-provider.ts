@@ -19,17 +19,20 @@ export class OpenRouterProvider implements TranslationProvider {
   private apiKey: string;
   private globalPrompt: string;
   private novelPrompt: string;
+  private glossary: string;
 
   constructor(
     apiKey: string,
     modelName?: string,
     globalPrompt?: string,
     novelPrompt?: string,
+    glossary?: string,
   ) {
     this.apiKey = apiKey;
     this.modelName = modelName ?? "google/gemini-2.5-flash-lite";
     this.globalPrompt = globalPrompt ?? "";
     this.novelPrompt = novelPrompt ?? "";
+    this.glossary = glossary ?? "";
   }
 
   private buildSystemPrompt(): string {
@@ -37,6 +40,10 @@ export class OpenRouterProvider implements TranslationProvider {
 
     if (this.globalPrompt.trim()) {
       parts.push(`\nAdditional translation guidelines:\n${this.globalPrompt.trim()}`);
+    }
+
+    if (this.glossary.trim()) {
+      parts.push(`\nGlossary & translation reference:\n${this.glossary.trim()}`);
     }
 
     if (this.novelPrompt.trim()) {

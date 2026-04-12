@@ -5,6 +5,7 @@ import Link from "next/link";
 import { IngestButton } from "@/components/ingest-button";
 import { SubscribeButton } from "@/components/subscribe-button";
 import { NovelPromptEditor } from "@/components/novel-prompt-editor";
+import { NovelGlossaryEditor } from "@/components/novel-glossary-editor";
 import { NovelTranslationInventory } from "@/components/novel-translation-inventory";
 import { getLocale, t } from "@/lib/i18n";
 
@@ -143,8 +144,9 @@ export default async function NovelDetailPage({ params }: Props) {
         </div>
       </section>
 
-      {/* Per-novel translation prompt */}
+      {/* Per-novel translation prompt & glossary */}
       <NovelPromptEditor novelId={novelId} />
+      <NovelGlossaryEditor novelId={novelId} />
       <NovelTranslationInventory
         novelId={novelId}
         translatedEpisodes={novel.statusOverview.translatedEpisodes}

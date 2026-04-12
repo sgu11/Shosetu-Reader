@@ -80,3 +80,17 @@ export const novelTranslationPrompts = pgTable(
     ),
   ],
 );
+
+export const novelGlossaries = pgTable("novel_glossaries", {
+  id: uuid().primaryKey().defaultRandom(),
+  novelId: uuid("novel_id")
+    .notNull()
+    .unique()
+    .references(() => novels.id, { onDelete: "cascade" }),
+  glossary: text("glossary").notNull().default(""),
+  modelName: text("model_name"),
+  episodeCount: integer("episode_count"),
+  generatedAt: timestamp("generated_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
