@@ -1,6 +1,6 @@
 # PROGRESS.md
 
-Last updated: 2026-04-11
+Last updated: 2026-04-10
 
 ---
 
@@ -13,8 +13,8 @@ Last updated: 2026-04-11
 | 2 | Source Registration Foundation | Done |
 | 3 | Episode Ingestion and Reader Baseline | Done |
 | 3.5 | Design System Integration (dark-mode-native) | Done |
-| 4 | Library and Progress | Partial |
-| 5 | Translation Pipeline | Partial |
+| 4 | Library and Progress | Done |
+| 5 | Translation Pipeline | Done |
 | 6 | Ranking Discovery | Done |
 | 7 | Hardening and Docker | Partial |
 
@@ -26,8 +26,8 @@ Last updated: 2026-04-11
 |-----------|--------|-------|
 | Register novel via URL or ncode | Done | POST /api/novels/register |
 | Read ingested Japanese episodes | Done | Reader with configurable fonts, prev/next nav |
-| Subscriptions and continue-reading | Partial | Subscribe/unsubscribe works, but resume state restoration is incomplete |
-| Korean translation request and read | Partial | Translation works, but durable queueing and KR fallback behavior still need work |
+| Subscriptions and continue-reading | Done | Subscribe/unsubscribe, resume reading with scroll/language/progress restoration |
+| Korean translation request and read | Done | Translation pipeline with model selection, retry, discard, inventory. Inline queue (Redis upgrade planned) |
 | UI supports English and Korean | Done | EN/KR dictionaries, locale switcher, cookie persistence |
 | System runs with PostgreSQL and Redis, Docker-ready | Partial | PostgreSQL + Docker done, Redis deferred |
 
@@ -35,7 +35,7 @@ Last updated: 2026-04-11
 
 ## What's Built
 
-### API Routes (22 endpoints across 22 route files)
+### API Routes (30 endpoints across 30 route files)
 - `GET  /api/health`
 - `POST /api/novels/register`
 - `GET  /api/novels/[novelId]`
@@ -58,8 +58,16 @@ Last updated: 2026-04-11
 - `GET/PUT /api/settings`
 - `GET  /api/admin/jobs`
 - `GET  /api/admin/translations`
+- `POST /api/auth/sign-in`
+- `POST /api/auth/sign-out`
+- `GET  /api/auth/session`
+- `GET/POST /api/profiles`
+- `GET/PUT/DELETE /api/profiles/active`
+- `GET  /api/jobs/[jobId]`
+- `DELETE /api/novels/[novelId]/translations/discard`
+- `DELETE /api/translations/episodes/[episodeId]/discard`
 
-### Pages (7 screens + framework `_not-found`)
+### Pages (9 screens + framework `_not-found`)
 - Home (hero + continue reading with translated titles)
 - Register novel
 - Novel detail (episodes list, subscribe, unified actions menu)
@@ -67,8 +75,10 @@ Last updated: 2026-04-11
 - Library (subscribed novels with progress)
 - Ranking (daily/weekly/monthly/quarterly tabs with title translation)
 - Settings (locale, theme, translation model picker, global prompt)
+- Profiles (create, switch, guest revert)
+- Sign-in (redirects to profiles)
 
-### Components (9 shared components)
+### Components (12 shared components)
 - IngestButton — unified actions dropdown (ingest + translate)
 - ReaderSettings — per-device cookie-based font/layout preferences
 - SubscribeButton — subscribe/unsubscribe toggle
@@ -78,8 +88,11 @@ Last updated: 2026-04-11
 - LocaleProvider — i18n context provider
 - LocaleSwitcher — EN/KR pill toggle
 - Nav — top navigation bar
+- ProfileSwitcher — active profile display and management link
+- AuthStatus — session authentication status
+- NovelTranslationInventory — per-novel translation breakdown and discard controls
 
-### Modules (8 domains)
+### Modules (9 domains)
 - source — Syosetu API/HTML integration
 - catalog — novel and episode domain
 - library — subscriptions, progress, continue-reading
@@ -93,15 +106,17 @@ Last updated: 2026-04-11
 - **Reader font settings**: stored in per-device cookie (`reader-prefs`, 1-year expiry), not in database — allows different settings per device
 - **Translation model**: configurable via Settings page with OpenRouter model picker
 - **Per-novel prompts**: custom translation instructions per novel (character names, tone)
-- **Bulk operations**: "Ingest all" and "Translate all" currently run as fire-and-forget request-spawned tasks, not a durable queue
+- **Bulk operations**: "Ingest all" and "Translate all" run via inline job queue with DB-persisted progress (Redis upgrade planned)
+- **Multi-user**: Profile-based user scoping with guest data migration; session auth scaffolded
+- **Reader resume**: Scroll anchor + percent-based restoration with language persistence
 - **Rate limiting**: API endpoints rate-limited, with user-facing alert for translation rate limits
 - **Title translation**: episode and ranking titles translated and cached in DB
 - **Fonts**: 6 font families (Noto Serif JP, Nanum Myeongjo, Nanum Gothic, NanumBarunGothic, MaruBuri, Pretendard), 3 weights (Normal, Bold, Extra Bold)
 - **i18n**: EN/KR dictionaries with cookie-based locale persistence, Korean as default
 
 ### Tests
-- 41 tests across 6 files
-- Coverage: ncode parsing, input schemas, episode scraping, Syosetu API, library schemas, translation schemas
+- 56 tests across 11 files
+- Coverage: ncode parsing, input schemas, episode scraping, Syosetu API, library schemas, translation schemas, identity schemas, catalog schemas, reader schemas, translation discard schemas
 
 ---
 
@@ -116,43 +131,49 @@ Last updated: 2026-04-11
 - **Live background updates**: fetching/translation progress should update in-page without manual refresh
 - **Translation progress estimation**: progress bar based on average throughput and request size history
 
-### V2.1 Baseline Stabilization
-- Keep `pnpm test`, `pnpm check`, and `pnpm build` green
-- Remove documentation drift between code and progress tracking
-- Add missing tests around translation status and reader state behavior
+### V2.1 Baseline Stabilization — Done
+- `pnpm test` (56 tests), `pnpm check`, and `pnpm build` all green
+- Documentation updated to match code
+- Tests cover identity schemas, translation discard schemas, catalog schemas, reader schemas
 
-### V2.2 Multi-User Foundation
-- Add lightweight profile creation and profile selection
-- Replace the implicit default user flow with active-profile resolution
-- Scope settings, subscriptions, progress, translation settings, prompts, and admin visibility per user
-- Define migration behavior for existing anonymous/default-user data into a selected profile
+### V2.2 Multi-User Foundation — Done
+- Profile creation and selection via `/profiles` page
+- `resolveUserId()` replaces `ensureDefaultUser()` in all business logic
+- Settings, subscriptions, progress, translation settings, prompts scoped per user
+- Guest data migration with atomic transactions (preferences, subscriptions, progress)
+- Session auth API scaffolded (`/api/auth/*`)
 
-### V2.3 Durable Async Work
-- Replace request-scoped fire-and-forget work with a Redis-backed queue
-- Record ingest and translation lifecycle in `job_runs`
-- Make `/api/admin/jobs` reflect real queued/running/completed work
+### V2.3 Durable Async Work — Partial
+- Inline job queue with DB persistence via `job_runs` table
+- Job polling endpoint (`/api/jobs/[jobId]`) for background progress tracking
+- Ingest-all and bulk-translate-all use job queue with progress updates
+- **Remaining**: Replace inline adapter with Redis-backed durable queue, add retry logic
 
-### V2.4 Reader Resume Loop
-- Return saved progress in reader payload
-- Persist and restore last-read language and scroll anchor
-- Keep continue-reading aligned with actual reader state
+### V2.4 Reader Resume Loop — Done
+- Saved progress returned in reader payload (language, scroll anchor, progress percent)
+- Scroll restoration with anchor-based lookup and percent fallback (8 retries)
+- Language preference restored from progress
+- Continue-reading on home page aligned with reader state
 
-### V2.5 Library and Novel Status Overview
-- Add per-novel episode counters: total, pending, fetched, failed
-- Add translation counters: untranslated, queued, processing, available, failed
-- Add per-model translation counts for each novel
-- Surface summary status on library cards and richer detail on the novel page
+### V2.5 Library and Novel Status Overview — Done
+- Per-novel episode counters: fetched/total with batch queries
+- Translation counters: translated episodes count
+- Per-model translation counts (grouped, sorted by count)
+- Status badges on library cards and novel detail page
 
-### V2.6 Translation Inventory and Control
-- Add APIs and UI for discarding translations by episode, novel, model, and status
-- Support safe re-translation after prompt/model changes without losing audit history unnecessarily
-- Preserve the last readable KR translation while a new version is queued or processing
-- Add coverage for discard, retry, and translation fallback rules
+### V2.6 Translation Inventory and Control — Done
+- Discard translations by episode (`DELETE /api/translations/episodes/[episodeId]/discard`)
+- Discard translations by novel (`DELETE /api/novels/[novelId]/translations/discard`)
+- Filter by model name or translation ID
+- NovelTranslationInventory component with per-model breakdown
+- In-reader per-translation discard via model dropdown
+- Latest available translation preserved while new one processes
 
-### V2.7 Model Visibility and Quick Switching
-- Show the currently selected translation model in the reader top bar
-- Add a low-friction quick-switch control for changing the active/requested model
-- Distinguish between configured default model and currently displayed translation model
+### V2.7 Model Visibility and Quick Switching — Done
+- Current model shown in reader top bar pill button
+- Model dropdown with available translations, switch, retranslate, discard
+- Configured default model distinguished from currently displayed model
+- Link to settings for model configuration
 
 ### V2.8 Cost Estimation and Observability
 - Pull OpenRouter pricing metadata and cache it locally
@@ -171,23 +192,15 @@ Last updated: 2026-04-11
 2. **Metrics** — Queue depth monitoring, source failure reporting, translation performance trends
 3. **Light theme** — Currently dark-mode only
 
-## Recommended Execution Order
-1. **V2.2 Multi-User Foundation** — this unlocks truly personalized settings, prompts, and continue-reading
-2. **V2.3 Durable Async Work** — needed before live updates and trustworthy progress tracking
-3. **V2.4 Reader Resume Loop** — completes the user-level reading loop once active-profile selection exists
-4. **V2.5 Library and Novel Status Overview** — use queued job data and translation inventory to populate counts
-5. **V2.6 Translation Inventory and Control** — add discard/re-translate flows once inventory is visible
-6. **V2.7 Model Visibility and Quick Switching** — improve reader ergonomics after model ownership is clear
-7. **V2.8 Cost Estimation and Observability** — attach pricing and cost rollups to the stabilized translation pipeline
-8. **V2.9 Live Updates and Progress Estimation** — rely on queued jobs and tracked throughput data for responsive UX
+## Remaining V2 Execution Order
+1. **V2.3 Durable Async Work** — replace inline queue with Redis-backed durable queue, add retry logic
+2. **V2.8 Cost Estimation and Observability** — attach pricing and cost rollups to the translation pipeline
+3. **V2.9 Live Updates and Progress Estimation** — SSE/WebSocket for real-time job and translation status
 
-## First Slice Recommendation
-- Start with **V2.2 Multi-User Foundation**
-- Deliverables:
-  - profile creation and selection strategy
-  - active-profile resolver replacing default-user reads
-  - user-scoped settings/library/progress queries
-  - migration path for existing local data
-- Reason:
-  - It is the foundation for feature 1 directly
-  - It prevents us from building status, costs, and live updates around a temporary single-user abstraction
+## Completed V2 Phases
+- V2.1 Baseline Stabilization ✅
+- V2.2 Multi-User Foundation ✅
+- V2.4 Reader Resume Loop ✅
+- V2.5 Library and Novel Status Overview ✅
+- V2.6 Translation Inventory and Control ✅
+- V2.7 Model Visibility and Quick Switching ✅

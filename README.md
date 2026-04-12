@@ -15,13 +15,16 @@ A calm web reading platform for Japanese web novels from Syosetu with Korean tra
 ## Features
 
 - **Novel registration** via Syosetu URL or ncode
-- **Episode ingestion** with batch and full-ingest modes
-- **Web reader** with JA/KR toggle, per-device font/layout preferences (cookie-based)
-- **Korean translation** pipeline via OpenRouter with model selection, retry, and re-translate
-- **Personal library** with subscriptions, progress tracking, and continue-reading
+- **Episode ingestion** with batch and full-ingest modes (background job with progress)
+- **Web reader** with JA/KR toggle, per-device font/layout preferences (cookie-based), scroll restoration
+- **Korean translation** pipeline via OpenRouter with model selection, retry, re-translate, and discard
+- **Translation inventory** with per-model breakdown and novel/episode-level discard controls
+- **Multi-user profiles** with guest data migration and user-scoped settings/library/progress
+- **Personal library** with subscriptions, progress tracking, continue-reading, and status overview badges
 - **Ranking discovery** from Syosetu (daily/weekly/monthly/quarterly)
 - **Bilingual UI** (English/Korean) with cookie-based locale persistence
 - **Per-novel translation prompts** for character names, tone, etc.
+- **Model visibility** in reader with quick-switch between available translations
 
 ## Local Setup
 
@@ -76,7 +79,7 @@ src/
     admin/          Ops visibility
 ```
 
-## API Surface (22 endpoints)
+## API Surface (30 endpoints)
 
 ### Discovery & Registration
 - `POST /api/novels/register`
@@ -93,8 +96,10 @@ src/
 ### Translation
 - `POST /api/novels/[novelId]/bulk-translate`
 - `POST /api/novels/[novelId]/bulk-translate-all`
+- `DELETE /api/novels/[novelId]/translations/discard`
 - `POST /api/translations/episodes/[episodeId]/request`
 - `GET /api/translations/episodes/[episodeId]/status`
+- `DELETE /api/translations/episodes/[episodeId]/discard`
 - `GET/PUT /api/translation-settings`
 
 ### Library & Progress
@@ -102,22 +107,32 @@ src/
 - `POST/DELETE /api/library/[novelId]/subscribe`
 - `PUT /api/progress`
 
+### Identity & Profiles
+- `POST /api/auth/sign-in`
+- `POST /api/auth/sign-out`
+- `GET /api/auth/session`
+- `GET/POST /api/profiles`
+- `GET/PUT/DELETE /api/profiles/active`
+
 ### Reader & Settings
 - `GET /api/reader/episodes/[episodeId]`
 - `GET/PUT /api/settings`
 - `GET /api/openrouter/models`
 
-### Admin
+### Admin & Jobs
 - `GET /api/health`
 - `GET /api/admin/jobs`
 - `GET /api/admin/translations`
+- `GET /api/jobs/[jobId]`
 
-## Pages (7 screens + framework `_not-found`)
+## Pages (9 screens + framework `_not-found`)
 
-- **Home** — hero + continue reading
-- **Library** — subscribed novels with progress
+- **Home** — hero + continue reading with scroll restoration
+- **Library** — subscribed novels with status badges (fetched/translated counts)
 - **Ranking** — daily/weekly/monthly/quarterly tabs
 - **Register** — URL or ncode input
-- **Novel detail** — episodes, subscribe, unified actions menu (ingest + translate)
-- **Reader** — JA/KR toggle, font settings, prev/next navigation
+- **Novel detail** — episodes, subscribe, actions menu, translation inventory, per-novel prompt
+- **Reader** — JA/KR toggle, model visibility, font settings, prev/next navigation, progress tracking
 - **Settings** — locale, theme, translation model, global prompt
+- **Profiles** — create, switch, guest data migration
+- **Sign-in** — authentication entry point
