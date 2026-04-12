@@ -4,7 +4,7 @@ import type {
   TranslationResult,
 } from "../domain/provider";
 
-const SYSTEM_PROMPT = `You are a professional Japanese-to-Korean translator specializing in web novel (ウェブ小説) translation.
+const BASE_SYSTEM_PROMPT = `You are a professional Japanese-to-Korean translator specializing in web novel (ウェブ小説) translation.
 
 Rules:
 - Translate naturally into Korean, preserving the author's tone and style.
@@ -17,10 +17,33 @@ export class OpenRouterProvider implements TranslationProvider {
   readonly provider = "openrouter";
   readonly modelName: string;
   private apiKey: string;
+  private globalPrompt: string;
+  private novelPrompt: string;
 
-  constructor(apiKey: string, modelName?: string) {
+  constructor(
+    apiKey: string,
+    modelName?: string,
+    globalPrompt?: string,
+    novelPrompt?: string,
+  ) {
     this.apiKey = apiKey;
-    this.modelName = modelName ?? "anthropic/claude-sonnet-4-20250514";
+    this.modelName = modelName ?? "google/gemini-2.5-flash-lite";
+    this.globalPrompt = globalPrompt ?? "";
+    this.novelPrompt = novelPrompt ?? "";
+  }
+
+  private buildSystemPrompt(): string {
+    const parts = [BASE_SYSTEM_PROMPT];
+
+    if (this.globalPrompt.trim()) {
+      parts.push(`\nAdditional translation guidelines:\n${this.globalPrompt.trim()}`);
+    }
+
+    if (this.novelPrompt.trim()) {
+      parts.push(`\nTitle-specific instructions:\n${this.novelPrompt.trim()}`);
+    }
+
+    return parts.join("\n");
   }
 
   async translate(request: TranslationRequest): Promise<TranslationResult> {
@@ -35,7 +58,7 @@ export class OpenRouterProvider implements TranslationProvider {
       body: JSON.stringify({
         model: this.modelName,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: this.buildSystemPrompt() },
           {
             role: "user",
             content: `Translate the following Japanese text to Korean:\n\n${request.sourceText}`,

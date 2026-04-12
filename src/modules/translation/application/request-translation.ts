@@ -1,15 +1,50 @@
 import { eq, and } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { episodes, translations } from "@/lib/db/schema";
+import { episodes, translations, translationSettings, novelTranslationPrompts } from "@/lib/db/schema";
 import { env } from "@/lib/env";
+import { getDefaultUserId } from "@/lib/auth/default-user";
 import { OpenRouterProvider } from "../infra/openrouter-provider";
 
-const PROMPT_VERSION = "v1";
+const PROMPT_VERSION = "v2";
+
+/**
+ * Load user's translation settings (model + global prompt) and per-novel prompt.
+ */
+async function loadTranslationContext(novelId: string) {
+  const db = getDb();
+  const userId = getDefaultUserId();
+
+  const [settings] = await db
+    .select({
+      modelName: translationSettings.modelName,
+      globalPrompt: translationSettings.globalPrompt,
+    })
+    .from(translationSettings)
+    .where(eq(translationSettings.userId, userId))
+    .limit(1);
+
+  const [novelPrompt] = await db
+    .select({ prompt: novelTranslationPrompts.prompt })
+    .from(novelTranslationPrompts)
+    .where(
+      and(
+        eq(novelTranslationPrompts.novelId, novelId),
+        eq(novelTranslationPrompts.userId, userId),
+      ),
+    )
+    .limit(1);
+
+  return {
+    modelName: settings?.modelName ?? env.OPENROUTER_DEFAULT_MODEL,
+    globalPrompt: settings?.globalPrompt ?? "",
+    novelPrompt: novelPrompt?.prompt ?? "",
+  };
+}
 
 /**
  * Request a Korean translation for an episode.
  * If a translation already exists with the same identity, returns it.
- * Otherwise, creates a queued row and immediately processes it (synchronous for now).
+ * Otherwise, creates a queued row and immediately processes it.
  */
 export async function requestTranslation(
   episodeId: string,
@@ -33,7 +68,15 @@ export async function requestTranslation(
 
   const sourceChecksum = episode.rawHtmlChecksum ?? "unknown";
 
-  const provider = new OpenRouterProvider(env.OPENROUTER_API_KEY ?? "");
+  // Load translation context (model, global prompt, novel prompt)
+  const ctx = await loadTranslationContext(episode.novelId);
+
+  const provider = new OpenRouterProvider(
+    env.OPENROUTER_API_KEY ?? "",
+    ctx.modelName,
+    ctx.globalPrompt,
+    ctx.novelPrompt,
+  );
 
   // Check for existing translation with same identity
   const [existing] = await db

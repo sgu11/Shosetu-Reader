@@ -4,6 +4,7 @@ import { isSubscribed } from "@/modules/library/application/subscribe";
 import Link from "next/link";
 import { IngestButton } from "@/components/ingest-button";
 import { SubscribeButton } from "@/components/subscribe-button";
+import { NovelPromptEditor } from "@/components/novel-prompt-editor";
 import { getLocale, t } from "@/lib/i18n";
 
 interface Props {
@@ -99,6 +100,9 @@ export default async function NovelDetailPage({ params }: Props) {
           <IngestButton novelId={novelId} />
         </div>
       </section>
+
+      {/* Per-novel translation prompt */}
+      <NovelPromptEditor novelId={novelId} />
 
       {/* Episode list */}
       <section className="space-y-4">

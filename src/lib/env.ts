@@ -8,6 +8,7 @@ const serverEnvSchema = z.object({
   DATABASE_URL: z.string().optional().default(""),
   REDIS_URL: z.string().optional().default(""),
   OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_DEFAULT_MODEL: z.string().optional().default("google/gemini-2.5-flash-lite"),
 });
 
 export type Env = z.infer<typeof serverEnvSchema>;
@@ -18,6 +19,7 @@ const parsedEnv = serverEnvSchema.safeParse({
   DATABASE_URL: process.env.DATABASE_URL,
   REDIS_URL: process.env.REDIS_URL,
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+  OPENROUTER_DEFAULT_MODEL: process.env.OPENROUTER_DEFAULT_MODEL,
 });
 
 if (!parsedEnv.success) {

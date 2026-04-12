@@ -8,6 +8,13 @@
       "when": 1775802426600,
       "tag": "0000_useful_centennial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775806981984,
+      "tag": "0001_orange_blizzard",
+      "breakpoints": true
     }
   ]
 }

@@ -100,6 +100,26 @@ export const dictionaries = {
     "settings.save": "Save",
     "settings.saving": "Saving...",
     "settings.saved": "Saved",
+    "settings.translationConfig": "Configure translation model and prompts.",
+    "settings.translationModel": "Translation model",
+    "settings.translationModelDesc": "Select the OpenRouter model used for JP→KR translation.",
+    "settings.currentModel": "Current model",
+    "settings.searchModels": "Search models...",
+    "settings.loadingModels": "Loading available models...",
+    "settings.noModelsFound": "No models found.",
+    "settings.refineSearch": "Showing first 50 results. Refine your search for more.",
+    "settings.globalPrompt": "Global translation prompt",
+    "settings.globalPromptDesc": "Additional instructions applied to all translations.",
+    "settings.globalPromptPlaceholder": "Enter additional translation guidelines (e.g. honorific handling, style preferences)...",
+    "settings.useDefault": "Use default",
+
+    // Novel translation prompt
+    "novelPrompt.title": "Translation prompt",
+    "novelPrompt.subtitle": "Title-specific translation instructions (character names, tone, etc.)",
+    "novelPrompt.placeholder": "e.g. Main character 田中 should be kept as 타나카. Use formal tone for narration.",
+
+    // Nav
+    "nav.settings": "Settings",
 
     // Locale names
     "locale.en": "English",
@@ -207,6 +227,26 @@ export const dictionaries = {
     "settings.save": "저장",
     "settings.saving": "저장 중...",
     "settings.saved": "저장됨",
+    "settings.translationConfig": "번역 모델과 프롬프트를 설정합니다.",
+    "settings.translationModel": "번역 모델",
+    "settings.translationModelDesc": "JP→KR 번역에 사용할 OpenRouter 모델을 선택하세요.",
+    "settings.currentModel": "현재 모델",
+    "settings.searchModels": "모델 검색...",
+    "settings.loadingModels": "사용 가능한 모델을 불러오는 중...",
+    "settings.noModelsFound": "모델을 찾을 수 없습니다.",
+    "settings.refineSearch": "처음 50개 결과를 표시 중입니다. 검색어를 더 구체적으로 입력하세요.",
+    "settings.globalPrompt": "전체 번역 프롬프트",
+    "settings.globalPromptDesc": "모든 번역에 적용되는 추가 지시사항입니다.",
+    "settings.globalPromptPlaceholder": "추가 번역 가이드라인을 입력하세요 (예: 존댓말 처리, 문체 선호 등)...",
+    "settings.useDefault": "기본값 사용",
+
+    // Novel translation prompt
+    "novelPrompt.title": "번역 프롬프트",
+    "novelPrompt.subtitle": "작품별 번역 지시사항 (캐릭터명, 분위기 등)",
+    "novelPrompt.placeholder": "예: 주인공 田中는 타나카로 유지. 내레이션은 격식체로 번역.",
+
+    // Nav
+    "nav.settings": "설정",
 
     // Locale names
     "locale.en": "English",

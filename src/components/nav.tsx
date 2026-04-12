@@ -12,6 +12,7 @@ export function Nav() {
     { href: "/library", label: t("nav.library") },
     { href: "/ranking", label: t("nav.ranking") },
     { href: "/register", label: t("nav.register") },
+    { href: "/settings", label: t("nav.settings") },
   ] as const;
 
   return (
