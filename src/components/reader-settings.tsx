@@ -35,12 +35,15 @@ const FONT_FAMILIES = [
   { value: "noto-serif-jp", label: "Noto Serif JP", css: "'Noto Serif JP', serif" },
   { value: "nanum-myeongjo", label: "Nanum Myeongjo", css: "'Nanum Myeongjo', serif" },
   { value: "nanum-gothic", label: "Nanum Gothic", css: "'Nanum Gothic', sans-serif" },
+  { value: "nanum-barun-gothic", label: "NanumBarunGothic", css: "'Nanum Barun Gothic', sans-serif" },
+  { value: "maruburi", label: "MaruBuri", css: "'MaruBuri', serif" },
   { value: "pretendard", label: "Pretendard", css: "'Pretendard JP Variable', 'Pretendard JP', system-ui, sans-serif" },
 ];
 
 const FONT_WEIGHTS = [
   { value: "normal", label: "Normal", css: "400" },
   { value: "bold", label: "Bold", css: "700" },
+  { value: "extrabold", label: "Extra Bold", css: "800" },
 ];
 
 export function ReaderSettings() {

@@ -83,8 +83,8 @@ export async function PUT(req: NextRequest) {
     }
 
     // Upsert reader preferences (allowlist values to prevent CSS injection)
-    const ALLOWED_FONT_FAMILIES = new Set(["noto-serif-jp", "nanum-myeongjo", "nanum-gothic", "pretendard"]);
-    const ALLOWED_FONT_WEIGHTS = new Set(["normal", "bold"]);
+    const ALLOWED_FONT_FAMILIES = new Set(["noto-serif-jp", "nanum-myeongjo", "nanum-gothic", "nanum-barun-gothic", "maruburi", "pretendard"]);
+    const ALLOWED_FONT_WEIGHTS = new Set(["normal", "bold", "extrabold"]);
     const ALLOWED_FONT_SIZES = new Set(["small", "medium", "large", "xlarge"]);
     const ALLOWED_THEME_OVERRIDES = new Set(["light", "dark"]);
 

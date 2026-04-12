@@ -49,6 +49,14 @@ export default async function RootLayout({
           rel="stylesheet"
           href="https://fonts.googleapis.com/earlyaccess/nanummyeongjo.css"
         />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/earlyaccess/nanumbarungothic.css"
+        />
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/fonts-archive/MaruBuri/MaruBuri.css"
+        />
       </head>
       <body className="min-h-full flex flex-col">
         <LocaleProvider locale={locale}>
