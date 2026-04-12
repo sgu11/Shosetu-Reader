@@ -1,8 +1,10 @@
 import { randomUUID } from "crypto";
+import { cookies } from "next/headers";
 import { eq, ne } from "drizzle-orm";
 import { getDefaultUserId } from "@/lib/auth/default-user";
 import { getDb } from "@/lib/db/client";
 import { users } from "@/lib/db/schema";
+import type { Locale } from "@/lib/i18n/dictionaries";
 import type { UserContext } from "../domain/user-context";
 import { clearActiveProfileId, getActiveProfileId, setActiveProfileId } from "../infra/active-profile-cookie";
 import { migrateGuestStateToProfile } from "./guest-profile-migration";
@@ -53,6 +55,12 @@ export async function listProfiles(): Promise<{
   return { activeProfileId, profiles };
 }
 
+async function getCurrentLocale(): Promise<Locale> {
+  const store = await cookies();
+  const value = store.get("locale")?.value;
+  return value === "en" || value === "ko" ? value : "ko";
+}
+
 export async function createProfile(input: {
   displayName: string;
   importGuestData?: boolean;
@@ -60,11 +68,15 @@ export async function createProfile(input: {
   const db = getDb();
   const displayName = input.displayName.trim();
 
+  // Use the current browser locale so the new profile matches what the user sees
+  const currentLocale = await getCurrentLocale();
+
   const [row] = await db
     .insert(users)
     .values({
       email: createProfileEmail(displayName),
       displayName,
+      preferredUiLocale: currentLocale,
     })
     .returning({
       id: users.id,

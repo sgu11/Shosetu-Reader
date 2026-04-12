@@ -104,11 +104,14 @@ export async function getReaderPayload(
     )
     .limit(1);
 
-  const progress = progressRow && progressRow.currentEpisodeId === episodeId
+  // Language preference is novel-wide and should persist across episodes.
+  // Scroll position is episode-specific — only restore if same episode.
+  const isSameEpisode = progressRow?.currentEpisodeId === episodeId;
+  const progress = progressRow
     ? {
         currentLanguage: progressRow.currentLanguage,
-        scrollAnchor: progressRow.scrollAnchor,
-        progressPercent: progressRow.progressPercent,
+        scrollAnchor: isSameEpisode ? progressRow.scrollAnchor : null,
+        progressPercent: isSameEpisode ? progressRow.progressPercent : null,
       }
     : null;
 
