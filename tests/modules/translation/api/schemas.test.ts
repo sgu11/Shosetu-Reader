@@ -1,0 +1,62 @@
+import { describe, expect, it } from "vitest";
+import {
+  requestTranslationInputSchema,
+  translationStatusResponseSchema,
+} from "@/modules/translation/api/schemas";
+
+describe("requestTranslationInputSchema", () => {
+  it("accepts ko as target language", () => {
+    const result = requestTranslationInputSchema.safeParse({
+      targetLanguage: "ko",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects other languages", () => {
+    const result = requestTranslationInputSchema.safeParse({
+      targetLanguage: "en",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("translationStatusResponseSchema", () => {
+  it("validates a complete available response", () => {
+    const result = translationStatusResponseSchema.safeParse({
+      episodeId: "550e8400-e29b-41d4-a716-446655440000",
+      targetLanguage: "ko",
+      status: "available",
+      translatedText: "번역된 텍스트",
+      provider: "openrouter",
+      modelName: "gpt-4o",
+      completedAt: "2026-04-10T12:00:00.000Z",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("validates a not_requested response", () => {
+    const result = translationStatusResponseSchema.safeParse({
+      episodeId: "550e8400-e29b-41d4-a716-446655440000",
+      targetLanguage: "ko",
+      status: "not_requested",
+      translatedText: null,
+      provider: null,
+      modelName: null,
+      completedAt: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid status", () => {
+    const result = translationStatusResponseSchema.safeParse({
+      episodeId: "550e8400-e29b-41d4-a716-446655440000",
+      targetLanguage: "ko",
+      status: "unknown",
+      translatedText: null,
+      provider: null,
+      modelName: null,
+      completedAt: null,
+    });
+    expect(result.success).toBe(false);
+  });
+});

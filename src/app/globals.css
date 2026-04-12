@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f4efe6;
+  --surface: #fbf8f3;
+  --surface-strong: #f0e7d8;
+  --foreground: #201814;
+  --muted: #64564b;
+  --border: rgba(64, 43, 30, 0.12);
+  --accent: #9f4f2a;
+  --accent-contrast: #fff8ef;
+  --success: #2f6a47;
+  --warning: #9f651d;
+  --error: #9f3a2a;
+  --shadow: 0 20px 45px rgba(54, 38, 28, 0.08);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --font-sans: var(--font-ui);
+  --font-serif: var(--font-reader);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #15110f;
+    --surface: #1d1713;
+    --surface-strong: #241c17;
+    --foreground: #f5eee7;
+    --muted: #bea894;
+    --border: rgba(245, 238, 231, 0.12);
+    --accent: #d48b55;
+    --accent-contrast: #1b120c;
+    --success: #71ba8f;
+    --warning: #dba45c;
+    --error: #e58b7c;
+    --shadow: 0 24px 48px rgba(0, 0, 0, 0.32);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
+}
+
+@media (prefers-color-scheme: light) {
+  html {
+    background:
+      radial-gradient(circle at top, rgba(212, 139, 85, 0.12), transparent 32%),
+      linear-gradient(180deg, rgba(255, 248, 239, 0.4), transparent 28%),
+      var(--background);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    background:
+      radial-gradient(circle at top, rgba(212, 139, 85, 0.06), transparent 32%),
+      linear-gradient(180deg, rgba(30, 20, 14, 0.5), transparent 28%),
+      var(--background);
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-ui), sans-serif;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.reader-text {
+  font-family: var(--font-reader), serif;
+}
+
+.surface-card {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.hairline {
+  border-color: var(--border);
+}
