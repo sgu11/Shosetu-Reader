@@ -1,6 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { episodes, translations, translationSettings, novelTranslationPrompts, novelGlossaries } from "@/lib/db/schema";
+import { episodes, translations, translationSettings, novelGlossaries } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
 import { OpenRouterProvider } from "../infra/openrouter-provider";
@@ -24,17 +24,6 @@ async function loadTranslationContext(novelId: string) {
     .where(eq(translationSettings.userId, userId))
     .limit(1);
 
-  const [novelPrompt] = await db
-    .select({ prompt: novelTranslationPrompts.prompt })
-    .from(novelTranslationPrompts)
-    .where(
-      and(
-        eq(novelTranslationPrompts.novelId, novelId),
-        eq(novelTranslationPrompts.userId, userId),
-      ),
-    )
-    .limit(1);
-
   const [glossaryRow] = await db
     .select({ glossary: novelGlossaries.glossary })
     .from(novelGlossaries)
@@ -44,7 +33,6 @@ async function loadTranslationContext(novelId: string) {
   return {
     modelName: settings?.modelName ?? env.OPENROUTER_DEFAULT_MODEL,
     globalPrompt: settings?.globalPrompt ?? "",
-    novelPrompt: novelPrompt?.prompt ?? "",
     glossary: glossaryRow?.glossary ?? "",
   };
 }
@@ -84,7 +72,6 @@ export async function requestTranslation(
     env.OPENROUTER_API_KEY ?? "",
     modelOverride ?? ctx.modelName,
     ctx.globalPrompt,
-    ctx.novelPrompt,
     ctx.glossary,
   );
 

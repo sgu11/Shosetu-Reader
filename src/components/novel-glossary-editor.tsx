@@ -1,7 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "@/lib/i18n/client";
+
+interface ModelOption {
+  id: string;
+  name: string;
+}
 
 interface Props {
   novelId: string;
@@ -20,6 +25,13 @@ export function NovelGlossaryEditor({ novelId }: Props) {
   const [saved, setSaved] = useState(false);
   const [generating, setGenerating] = useState(false);
 
+  // Model selector state
+  const [selectedModel, setSelectedModel] = useState("");
+  const [models, setModels] = useState<ModelOption[]>([]);
+  const [modelSearch, setModelSearch] = useState("");
+  const [modelPickerOpen, setModelPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     fetch(`/api/novels/${novelId}/glossary`)
       .then((res) => res.json())
@@ -33,6 +45,47 @@ export function NovelGlossaryEditor({ novelId }: Props) {
       })
       .catch(() => {});
   }, [novelId]);
+
+  // Load user's default model for pre-selection
+  useEffect(() => {
+    fetch("/api/translation-settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!selectedModel) {
+          setSelectedModel(data.modelName ?? "");
+        }
+      })
+      .catch(() => {});
+  }, [selectedModel]);
+
+  // Load available models
+  useEffect(() => {
+    fetch("/api/openrouter/models")
+      .then((res) => res.json())
+      .then((data) => setModels(data.models ?? []))
+      .catch(() => {});
+  }, []);
+
+  // Close picker on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setModelPickerOpen(false);
+      }
+    }
+    if (modelPickerOpen) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [modelPickerOpen]);
+
+  const filteredModels = modelSearch.trim()
+    ? models.filter(
+        (m) =>
+          m.id.toLowerCase().includes(modelSearch.toLowerCase()) ||
+          m.name.toLowerCase().includes(modelSearch.toLowerCase()),
+      )
+    : models;
+
+  const shortModel = (id: string) => id.split("/").pop() ?? id;
 
   const save = useCallback(async () => {
     setSaving(true);
@@ -57,6 +110,8 @@ export function NovelGlossaryEditor({ novelId }: Props) {
     try {
       const res = await fetch(`/api/novels/${novelId}/glossary`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: selectedModel || undefined }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -75,7 +130,7 @@ export function NovelGlossaryEditor({ novelId }: Props) {
     } finally {
       setGenerating(false);
     }
-  }, [novelId]);
+  }, [novelId, selectedModel]);
 
   return (
     <section className="surface-card space-y-3 rounded-xl p-6">
@@ -99,6 +154,9 @@ export function NovelGlossaryEditor({ novelId }: Props) {
                 episodes: meta.episodeCount ?? 0,
                 date: new Date(meta.generatedAt).toLocaleDateString(),
               })}
+              {meta.modelName && (
+                <span className="ml-2 code-label">{shortModel(meta.modelName)}</span>
+              )}
             </p>
           )}
 
@@ -109,6 +167,57 @@ export function NovelGlossaryEditor({ novelId }: Props) {
             className="w-full rounded-md border border-border bg-background px-4 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted/50 focus:border-border-strong focus:outline-none"
             placeholder={t("glossary.placeholder")}
           />
+
+          {/* Model selector for generation */}
+          <div className="relative" ref={pickerRef}>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted">{t("glossary.model")}:</span>
+              <button
+                type="button"
+                onClick={() => setModelPickerOpen(!modelPickerOpen)}
+                className="code-label cursor-pointer hover:bg-surface-strong transition-colors"
+              >
+                {selectedModel ? shortModel(selectedModel) : "—"}
+              </button>
+            </div>
+
+            {modelPickerOpen && (
+              <div className="absolute left-0 top-full z-20 mt-1 w-80 rounded-lg border border-border bg-surface p-2 shadow-lg">
+                <input
+                  type="text"
+                  value={modelSearch}
+                  onChange={(e) => setModelSearch(e.target.value)}
+                  placeholder={t("settings.searchModels")}
+                  className="mb-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted/50 focus:border-border-strong focus:outline-none"
+                  autoFocus
+                />
+                <div className="max-h-48 overflow-y-auto">
+                  {filteredModels.slice(0, 30).map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedModel(m.id);
+                        setModelPickerOpen(false);
+                        setModelSearch("");
+                      }}
+                      className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-surface-strong ${
+                        selectedModel === m.id ? "text-accent" : "text-muted"
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate">{m.name}</p>
+                        <p className="truncate text-xs text-muted/60">{m.id}</p>
+                      </div>
+                    </button>
+                  ))}
+                  {filteredModels.length === 0 && (
+                    <p className="px-3 py-2 text-xs text-muted">{t("settings.noModelsFound")}</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center gap-3">
             <button

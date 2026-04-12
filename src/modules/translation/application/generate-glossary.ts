@@ -29,6 +29,7 @@ interface GlossaryResult {
  */
 export async function generateGlossary(
   novelId: string,
+  modelOverride?: string,
   maxEpisodes = 10,
 ): Promise<GlossaryResult> {
   const db = getDb();
@@ -69,7 +70,7 @@ export async function generateGlossary(
     return `${header}\n\n[Japanese]\n${jpTruncated}\n\n[Korean Translation]\n${krTruncated}`;
   }).join("\n\n");
 
-  const modelName = env.OPENROUTER_DEFAULT_MODEL;
+  const modelName = modelOverride || env.OPENROUTER_DEFAULT_MODEL;
   const apiKey = env.OPENROUTER_API_KEY;
 
   if (!apiKey) {

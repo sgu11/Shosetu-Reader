@@ -46,10 +46,17 @@ export async function PUT(req: NextRequest, context: RouteContext) {
   }
 }
 
-export async function POST(_req: NextRequest, context: RouteContext) {
+export async function POST(req: NextRequest, context: RouteContext) {
   try {
     const { novelId } = await context.params;
-    const result = await generateGlossary(novelId);
+    let modelName: string | undefined;
+    try {
+      const body = await req.json();
+      modelName = typeof body.model === "string" ? body.model : undefined;
+    } catch {
+      // no body is fine — use default model
+    }
+    const result = await generateGlossary(novelId, modelName);
     return NextResponse.json({
       glossary: result.glossary,
       modelName: result.modelName,

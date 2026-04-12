@@ -2,7 +2,6 @@ import { and, eq } from "drizzle-orm";
 import { getDefaultUserId } from "@/lib/auth/default-user";
 import { getDb } from "@/lib/db/client";
 import {
-  novelTranslationPrompts,
   readerPreferences,
   readingProgress,
   translationSettings,
@@ -139,36 +138,6 @@ export async function migrateGuestStateToProfile(
       await tx
         .delete(translationSettings)
         .where(eq(translationSettings.id, guestTranslationSettings.id));
-    }
-
-    const guestPrompts = await tx
-      .select()
-      .from(novelTranslationPrompts)
-      .where(eq(novelTranslationPrompts.userId, guestUserId));
-
-    for (const prompt of guestPrompts) {
-      const [targetPrompt] = await tx
-        .select({ id: novelTranslationPrompts.id })
-        .from(novelTranslationPrompts)
-        .where(
-          and(
-            eq(novelTranslationPrompts.userId, targetUserId),
-            eq(novelTranslationPrompts.novelId, prompt.novelId),
-          ),
-        )
-        .limit(1);
-
-      if (!targetPrompt) {
-        await tx.insert(novelTranslationPrompts).values({
-          userId: targetUserId,
-          novelId: prompt.novelId,
-          prompt: prompt.prompt,
-        });
-      }
-
-      await tx
-        .delete(novelTranslationPrompts)
-        .where(eq(novelTranslationPrompts.id, prompt.id));
     }
 
     // Subscriptions are universal (not per-user), so no migration needed.

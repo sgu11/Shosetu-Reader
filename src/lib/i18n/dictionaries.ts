@@ -177,11 +177,6 @@ export const dictionaries = {
     "profile.manage": "Manage",
     "profile.active": "Active",
 
-    // Novel translation prompt
-    "novelPrompt.title": "Translation prompt",
-    "novelPrompt.subtitle": "Title-specific translation instructions (character names, tone, etc.)",
-    "novelPrompt.placeholder": "e.g. Main character 田中 should be kept as 타나카. Use formal tone for narration.",
-
     // Glossary
     "glossary.title": "Glossary & guidelines",
     "glossary.subtitle": "Auto-generated glossary from first translated episodes",
@@ -191,6 +186,7 @@ export const dictionaries = {
     "glossary.generatedInfo": "Generated from {episodes} episodes on {date}",
     "glossary.generateAction": "Generate glossary",
     "glossary.generateActionBusy": "Generating glossary...",
+    "glossary.model": "Model",
 
     // Auth
     "auth.loading": "Loading...",
@@ -391,11 +387,6 @@ export const dictionaries = {
     "profile.manage": "관리",
     "profile.active": "활성",
 
-    // Novel translation prompt
-    "novelPrompt.title": "번역 프롬프트",
-    "novelPrompt.subtitle": "작품별 번역 지시사항 (캐릭터명, 분위기 등)",
-    "novelPrompt.placeholder": "예: 주인공 田中는 타나카로 유지. 내레이션은 격식체로 번역.",
-
     // Glossary
     "glossary.title": "글로서리 & 가이드라인",
     "glossary.subtitle": "번역된 에피소드를 기반으로 자동 생성된 용어집",
@@ -405,6 +396,7 @@ export const dictionaries = {
     "glossary.generatedInfo": "{episodes}화 기반으로 {date}에 생성됨",
     "glossary.generateAction": "검수 및 글로서리 작성",
     "glossary.generateActionBusy": "글로서리 생성 중...",
+    "glossary.model": "모델",
 
     // Auth
     "auth.loading": "불러오는 중...",

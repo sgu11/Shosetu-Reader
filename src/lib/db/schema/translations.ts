@@ -12,6 +12,9 @@ import { episodes } from "./episodes";
 import { users } from "./users";
 import { novels } from "./novels";
 
+// NOTE: novel_translation_prompts table was dropped in migration 0009.
+// Per-novel translation guidance is now handled by novel_glossaries.
+
 export const translations = pgTable(
   "translations",
   {
@@ -58,28 +61,6 @@ export const translationSettings = pgTable("translation_settings", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
-
-export const novelTranslationPrompts = pgTable(
-  "novel_translation_prompts",
-  {
-    id: uuid().primaryKey().defaultRandom(),
-    novelId: uuid("novel_id")
-      .notNull()
-      .references(() => novels.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    prompt: text("prompt").notNull().default(""),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [
-    uniqueIndex("novel_translation_prompts_user_novel_idx").on(
-      table.novelId,
-      table.userId,
-    ),
-  ],
-);
 
 export const novelGlossaries = pgTable("novel_glossaries", {
   id: uuid().primaryKey().defaultRandom(),
