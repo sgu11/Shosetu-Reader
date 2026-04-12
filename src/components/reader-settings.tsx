@@ -11,6 +11,25 @@ interface ReaderPrefs {
   fontWeight: string;
 }
 
+const COOKIE_NAME = "reader-prefs";
+const COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 1 year
+
+function readPrefsCookie(): Partial<ReaderPrefs> | null {
+  try {
+    const match = document.cookie
+      .split("; ")
+      .find((c) => c.startsWith(`${COOKIE_NAME}=`));
+    if (!match) return null;
+    return JSON.parse(decodeURIComponent(match.split("=").slice(1).join("=")));
+  } catch {
+    return null;
+  }
+}
+
+function writePrefsCookie(prefs: ReaderPrefs) {
+  document.cookie = `${COOKIE_NAME}=${encodeURIComponent(JSON.stringify(prefs))};path=/;max-age=${COOKIE_MAX_AGE};SameSite=Lax`;
+}
+
 const FONT_SIZES = [
   { value: "small", label: "14px", px: 14 },
   { value: "medium", label: "16px", px: 16 },
@@ -56,27 +75,22 @@ export function ReaderSettings() {
     fontFamily: "nanum-myeongjo",
     fontWeight: "bold",
   });
-  const [saving, setSaving] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Load current settings
+  // Load current settings from cookie
   useEffect(() => {
-    fetch("/api/settings")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.reader) {
-          const loaded: ReaderPrefs = {
-            fontSize: data.reader.fontSize ?? "medium",
-            lineHeight: data.reader.lineHeight ?? "1.8",
-            contentWidth: data.reader.contentWidth ?? "800",
-            fontFamily: data.reader.fontFamily ?? "nanum-myeongjo",
-            fontWeight: data.reader.fontWeight ?? "bold",
-          };
-          setPrefs(loaded);
-          applyStyles(loaded);
-        }
-      })
-      .catch(() => {});
+    const saved = readPrefsCookie();
+    if (saved) {
+      const loaded: ReaderPrefs = {
+        fontSize: saved.fontSize ?? "medium",
+        lineHeight: saved.lineHeight ?? "1.8",
+        contentWidth: saved.contentWidth ?? "800",
+        fontFamily: saved.fontFamily ?? "nanum-myeongjo",
+        fontWeight: saved.fontWeight ?? "bold",
+      };
+      setPrefs(loaded);
+      applyStyles(loaded);
+    }
   }, []);
 
   // Close panel on outside click
@@ -101,21 +115,10 @@ export function ReaderSettings() {
     document.documentElement.style.setProperty("--reader-font-weight", weightCss);
   }
 
-  async function save(updated: ReaderPrefs) {
+  function save(updated: ReaderPrefs) {
     setPrefs(updated);
     applyStyles(updated);
-    setSaving(true);
-    try {
-      await fetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reader: updated }),
-      });
-    } catch {
-      // silent
-    } finally {
-      setSaving(false);
-    }
+    writePrefsCookie(updated);
   }
 
   return (
@@ -247,9 +250,6 @@ export function ReaderSettings() {
             </div>
           </div>
 
-          {saving && (
-            <p className="text-center text-xs text-muted">{t("settings.saving")}</p>
-          )}
         </div>
       )}
     </div>
