@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq, and, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { episodes, translations } from "@/lib/db/schema";
+import { episodes } from "@/lib/db/schema";
 import { requestTranslation } from "@/modules/translation/application/request-translation";
 import { rateLimit } from "@/lib/rate-limit";
 import { isValidUuid } from "@/lib/validation";

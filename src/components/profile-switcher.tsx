@@ -1,0 +1,60 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useTranslation } from "@/lib/i18n/client";
+
+interface ActiveProfileResponse {
+  activeProfileId: string | null;
+  profile: {
+    id: string;
+    displayName: string;
+  } | null;
+}
+
+export function ProfileSwitcher() {
+  const router = useRouter();
+  const { t } = useTranslation();
+  const [activeProfile, setActiveProfile] = useState<ActiveProfileResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/profiles/active")
+      .then((res) => res.json())
+      .then((data) => setActiveProfile(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function switchToGuest() {
+    await fetch("/api/profiles/active", { method: "DELETE" });
+    router.refresh();
+  }
+
+  if (loading) {
+    return <span className="text-xs text-muted">{t("profile.loading")}</span>;
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="rounded-full border border-border px-3 py-1 text-xs text-muted">
+        {activeProfile?.profile
+          ? `${t("profile.active")}: ${activeProfile.profile.displayName}`
+          : t("profile.guest")}
+      </span>
+      <Link href="/profiles" className="rounded-full border border-border px-3 py-1 text-xs text-muted transition-colors hover:bg-surface-strong hover:text-foreground">
+        {t("profile.manage")}
+      </Link>
+      {activeProfile?.profile && (
+        <button
+          type="button"
+          onClick={switchToGuest}
+          className="rounded-full border border-border px-3 py-1 text-xs text-muted transition-colors hover:bg-surface-strong hover:text-foreground"
+        >
+          {t("profile.useGuest")}
+        </button>
+      )}
+    </div>
+  );
+}

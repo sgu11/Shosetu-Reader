@@ -2,7 +2,7 @@ import { eq, and } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { episodes, translations, translationSettings, novelTranslationPrompts } from "@/lib/db/schema";
 import { env } from "@/lib/env";
-import { getDefaultUserId } from "@/lib/auth/default-user";
+import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
 import { OpenRouterProvider } from "../infra/openrouter-provider";
 
 const PROMPT_VERSION = "v2";
@@ -12,7 +12,7 @@ const PROMPT_VERSION = "v2";
  */
 async function loadTranslationContext(novelId: string) {
   const db = getDb();
-  const userId = getDefaultUserId();
+  const userId = await resolveUserId();
 
   const [settings] = await db
     .select({

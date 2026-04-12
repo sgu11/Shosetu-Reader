@@ -5,7 +5,12 @@ import Link from "next/link";
 import { IngestButton } from "@/components/ingest-button";
 import { SubscribeButton } from "@/components/subscribe-button";
 import { NovelPromptEditor } from "@/components/novel-prompt-editor";
+import { NovelTranslationInventory } from "@/components/novel-translation-inventory";
 import { getLocale, t } from "@/lib/i18n";
+
+function shortModelName(modelName: string): string {
+  return modelName.split("/").pop() ?? modelName;
+}
 
 interface Props {
   params: Promise<{ novelId: string }>;
@@ -87,6 +92,25 @@ export default async function NovelDetailPage({ params }: Props) {
           )}
         </div>
 
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+          <span className="rounded-full bg-surface-strong px-3 py-1">
+            {t(locale, "status.fetched")} {novel.statusOverview.fetchedEpisodes}
+            {novel.totalEpisodes != null ? `/${novel.totalEpisodes}` : ""}
+          </span>
+          <span className="rounded-full bg-success/10 px-3 py-1 text-success">
+            {t(locale, "status.translated")} {novel.statusOverview.translatedEpisodes}
+          </span>
+          {novel.statusOverview.translatedByModel.map((model) => (
+            <span
+              key={model.modelName}
+              className="rounded-full border border-border px-3 py-1"
+              title={model.modelName}
+            >
+              {shortModelName(model.modelName)} {model.translatedEpisodes}
+            </span>
+          ))}
+        </div>
+
         <div className="flex items-center gap-4">
           <a
             href={novel.sourceUrl}
@@ -106,6 +130,11 @@ export default async function NovelDetailPage({ params }: Props) {
 
       {/* Per-novel translation prompt */}
       <NovelPromptEditor novelId={novelId} />
+      <NovelTranslationInventory
+        novelId={novelId}
+        translatedEpisodes={novel.statusOverview.translatedEpisodes}
+        translatedByModel={novel.statusOverview.translatedByModel}
+      />
 
       {/* Episode list */}
       <section className="space-y-4">

@@ -4,6 +4,7 @@ import {
   discoverEpisodes,
   fetchPendingEpisodes,
 } from "@/modules/catalog/application/ingest-episodes";
+import { getJobQueue } from "@/modules/jobs/application/job-queue";
 import { rateLimit } from "@/lib/rate-limit";
 import { isValidUuid } from "@/lib/validation";
 
@@ -35,14 +36,53 @@ export async function POST(
 
   // Discover first (synchronous — fast, just TOC scrape)
   const discovered = await discoverEpisodes(novelId);
+  const jobQueue = getJobQueue();
 
-  // Fetch all pending in background (fire-and-forget)
-  fetchPendingEpisodes(novelId, 9999).catch((err) => {
-    console.error(`Background ingest-all failed for ${novelId}:`, err);
-  });
+  const job = await jobQueue.enqueue(
+    "catalog.ingest-all",
+    { novelId, limit: 9999, discovered },
+    async (context) => {
+      await context.updateProgress({
+        stage: "fetching",
+        discovered,
+        processed: 0,
+        total: 0,
+        fetched: 0,
+        failed: 0,
+      });
+
+      const result = await fetchPendingEpisodes(
+        novelId,
+        9999,
+        async (progress) => {
+          await context.updateProgress({
+            stage: "fetching",
+            discovered,
+            ...progress,
+          });
+        },
+      );
+
+      return {
+        stage: "completed",
+        discovered,
+        ...result,
+      };
+    },
+    {
+      entityType: "novel",
+      entityId: novelId,
+    },
+  );
 
   return NextResponse.json(
-    { novelId, discovered, message: "Fetching all pending episodes in background" },
+    {
+      novelId,
+      discovered,
+      jobId: job.id,
+      runner: job.runner,
+      message: "Fetching all pending episodes in background",
+    },
     { status: 202 },
   );
 }

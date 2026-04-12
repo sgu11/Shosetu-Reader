@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db/client";
 import { novels, episodes, translations } from "@/lib/db/schema";
 import { translateTexts } from "@/lib/translate-cache";
 import type { NovelResponse, EpisodeListItem } from "../api/schemas";
+import { createEmptyNovelStatusOverview, getNovelStatusOverviews } from "./get-novel-status-overviews";
 
 export async function getNovelById(
   novelId: string,
@@ -31,6 +32,8 @@ export async function getNovelById(
     if (!summaryKo && row.summaryJa) summaryKo = cache.get(row.summaryJa) ?? null;
   }
 
+  const statusMap = await getNovelStatusOverviews([row.id]);
+
   return {
     id: row.id,
     sourceNcode: row.sourceNcode,
@@ -45,6 +48,7 @@ export async function getNovelById(
     totalEpisodes: row.totalEpisodes,
     lastSourceSyncAt: row.lastSourceSyncAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
+    statusOverview: statusMap[row.id] ?? createEmptyNovelStatusOverview(),
   };
 }
 

@@ -40,13 +40,15 @@ export async function getTranslationStatus(
       modelName: null,
       errorMessage: null,
       completedAt: null,
+      pendingTranslation: null,
       translations: [],
     };
   }
 
-  // Pick the "active" translation: prefer in-progress, then most recent available, then most recent overall
+  // Keep the most recent readable translation visible while a newer request is still running.
   const inProgress = rows.find((r) => r.status === "queued" || r.status === "processing");
-  const active = inProgress ?? rows[0];
+  const latestAvailable = rows.find((r) => r.status === "available");
+  const active = latestAvailable ?? inProgress ?? rows[0];
 
   return {
     episodeId,
@@ -57,6 +59,12 @@ export async function getTranslationStatus(
     modelName: active.modelName,
     errorMessage: active.errorMessage,
     completedAt: active.completedAt?.toISOString() ?? null,
+    pendingTranslation: inProgress
+      ? {
+          status: inProgress.status as "queued" | "processing",
+          modelName: inProgress.modelName,
+        }
+      : null,
     translations: allRecords,
   };
 }

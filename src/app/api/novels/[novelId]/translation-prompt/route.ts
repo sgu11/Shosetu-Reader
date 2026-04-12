@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq, and } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { novelTranslationPrompts } from "@/lib/db/schema";
-import { ensureDefaultUser } from "@/lib/auth/default-user";
+import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
 
 interface RouteContext {
   params: Promise<{ novelId: string }>;
@@ -11,7 +11,7 @@ interface RouteContext {
 export async function GET(_req: NextRequest, context: RouteContext) {
   try {
     const { novelId } = await context.params;
-    const userId = await ensureDefaultUser();
+    const userId = await resolveUserId();
     const db = getDb();
 
     const [row] = await db
@@ -39,7 +39,7 @@ const MAX_PROMPT_LENGTH = 5000;
 export async function PUT(req: NextRequest, context: RouteContext) {
   try {
     const { novelId } = await context.params;
-    const userId = await ensureDefaultUser();
+    const userId = await resolveUserId();
     const db = getDb();
     const body = await req.json();
 

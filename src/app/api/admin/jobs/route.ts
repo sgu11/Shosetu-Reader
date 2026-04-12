@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
         entityId: row.entityId,
         status: row.status,
         attemptCount: row.attemptCount,
+        payload: row.payloadJson,
         result: row.resultJson,
         startedAt: row.startedAt?.toISOString() ?? null,
         completedAt: row.completedAt?.toISOString() ?? null,

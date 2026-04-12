@@ -1,9 +1,9 @@
 import { eq, and, lt, gt, desc } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { episodes, novels, translations, translationSettings } from "@/lib/db/schema";
-import { getDefaultUserId } from "@/lib/auth/default-user";
+import { episodes, novels, readingProgress, translations, translationSettings } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { translateTexts } from "@/lib/translate-cache";
+import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
 import type { ReaderPayload } from "../api/schemas";
 
 export async function getReaderPayload(
@@ -64,13 +64,15 @@ export async function getReaderPayload(
     )
     .orderBy(desc(translations.createdAt));
 
-  // Pick the "active" translation: prefer in-progress, then most recent
-  const translation = allTranslations.find(
+  // Keep an existing readable translation visible while a newer one is processing.
+  const pendingTranslation = allTranslations.find(
     (r) => r.status === "queued" || r.status === "processing",
-  ) ?? allTranslations[0] ?? null;
+  ) ?? null;
+  const latestAvailable = allTranslations.find((r) => r.status === "available") ?? null;
+  const translation = latestAvailable ?? pendingTranslation ?? allTranslations[0] ?? null;
 
   // Get user's configured translation model
-  const userId = getDefaultUserId();
+  const userId = await resolveUserId();
   const [settings] = await db
     .select({ modelName: translationSettings.modelName })
     .from(translationSettings)
@@ -85,6 +87,30 @@ export async function getReaderPayload(
     const cache = await translateTexts([episode.titleJa]);
     titleKo = cache.get(episode.titleJa) ?? null;
   }
+
+  const [progressRow] = await db
+    .select({
+      currentEpisodeId: readingProgress.currentEpisodeId,
+      currentLanguage: readingProgress.currentLanguage,
+      scrollAnchor: readingProgress.scrollAnchor,
+      progressPercent: readingProgress.progressPercent,
+    })
+    .from(readingProgress)
+    .where(
+      and(
+        eq(readingProgress.userId, userId),
+        eq(readingProgress.novelId, novel.id),
+      ),
+    )
+    .limit(1);
+
+  const progress = progressRow && progressRow.currentEpisodeId === episodeId
+    ? {
+        currentLanguage: progressRow.currentLanguage,
+        scrollAnchor: progressRow.scrollAnchor,
+        progressPercent: progressRow.progressPercent,
+      }
+    : null;
 
   return {
     novel: {
@@ -116,11 +142,17 @@ export async function getReaderPayload(
         modelName: t.modelName,
         completedAt: t.completedAt?.toISOString() ?? null,
       })),
+    pendingTranslation: pendingTranslation
+      ? {
+          status: pendingTranslation.status as "queued" | "processing",
+          modelName: pendingTranslation.modelName,
+        }
+      : null,
     configuredModel,
     navigation: {
       prevEpisodeId: prevEpisode?.id ?? null,
       nextEpisodeId: nextEpisode?.id ?? null,
     },
-    progress: null, // Will be populated when auth is implemented
+    progress,
   };
 }

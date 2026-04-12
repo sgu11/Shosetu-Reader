@@ -1,12 +1,12 @@
 import { eq, and } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { subscriptions, novels } from "@/lib/db/schema";
-import { ensureDefaultUser } from "@/lib/auth/default-user";
+import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
 
 export async function subscribeToNovel(
   novelId: string,
 ): Promise<{ subscriptionId: string; isNew: boolean }> {
-  const userId = await ensureDefaultUser();
+  const userId = await resolveUserId();
   const db = getDb();
 
   // Verify novel exists
@@ -52,7 +52,7 @@ export async function subscribeToNovel(
 }
 
 export async function unsubscribeFromNovel(novelId: string): Promise<boolean> {
-  const userId = await ensureDefaultUser();
+  const userId = await resolveUserId();
   const db = getDb();
 
   const result = await db
@@ -71,7 +71,7 @@ export async function unsubscribeFromNovel(novelId: string): Promise<boolean> {
 }
 
 export async function isSubscribed(novelId: string): Promise<boolean> {
-  const userId = await ensureDefaultUser();
+  const userId = await resolveUserId();
   const db = getDb();
 
   const [row] = await db

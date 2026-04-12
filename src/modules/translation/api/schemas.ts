@@ -22,6 +22,11 @@ export const translationRecordSchema = z.object({
 
 export type TranslationRecord = z.infer<typeof translationRecordSchema>;
 
+export const pendingTranslationSchema = z.object({
+  status: z.enum(["queued", "processing"]),
+  modelName: z.string(),
+});
+
 // --- Translation status response (all translations for an episode) ---
 
 export const translationStatusResponseSchema = z.object({
@@ -34,6 +39,7 @@ export const translationStatusResponseSchema = z.object({
   modelName: z.string().nullable(),
   errorMessage: z.string().nullable(),
   completedAt: z.string().datetime().nullable(),
+  pendingTranslation: pendingTranslationSchema.nullable(),
   // All translations for this episode (for model selection)
   translations: z.array(translationRecordSchema),
 });
@@ -41,3 +47,20 @@ export const translationStatusResponseSchema = z.object({
 export type TranslationStatusResponse = z.infer<
   typeof translationStatusResponseSchema
 >;
+
+export const discardEpisodeTranslationInputSchema = z.object({
+  translationId: z.string().uuid().optional(),
+  modelName: z.string().max(200).optional(),
+});
+
+export const discardNovelTranslationsInputSchema = z.object({
+  modelName: z.string().max(200).optional(),
+});
+
+export const discardTranslationsResponseSchema = z.object({
+  deletedCount: z.number().int().nonnegative(),
+});
+
+export type DiscardEpisodeTranslationInput = z.infer<typeof discardEpisodeTranslationInputSchema>;
+export type DiscardNovelTranslationsInput = z.infer<typeof discardNovelTranslationsInputSchema>;
+export type DiscardTranslationsResponse = z.infer<typeof discardTranslationsResponseSchema>;

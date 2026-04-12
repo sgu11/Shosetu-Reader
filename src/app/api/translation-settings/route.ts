@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { translationSettings } from "@/lib/db/schema";
-import { ensureDefaultUser } from "@/lib/auth/default-user";
 import { env } from "@/lib/env";
 import { DEFAULT_GLOBAL_PROMPT } from "@/modules/translation/domain/default-prompt";
+import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
 
 export async function GET() {
   try {
-    const userId = await ensureDefaultUser();
+    const userId = await resolveUserId();
     const db = getDb();
 
     const [settings] = await db
@@ -36,7 +36,7 @@ const MAX_GLOBAL_PROMPT_LENGTH = 5000;
 
 export async function PUT(req: NextRequest) {
   try {
-    const userId = await ensureDefaultUser();
+    const userId = await resolveUserId();
     const db = getDb();
     const body = await req.json();
 

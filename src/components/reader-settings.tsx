@@ -65,6 +65,17 @@ const FONT_WEIGHTS = [
   { value: "extrabold", label: "Extra Bold", css: "800" },
 ];
 
+function applyReaderStyles(prefs: ReaderPrefs) {
+  const fontPx = FONT_SIZES.find((f) => f.value === prefs.fontSize)?.px ?? 16;
+  const fontCss = FONT_FAMILIES.find((f) => f.value === prefs.fontFamily)?.css ?? "'Noto Serif JP', serif";
+  const weightCss = FONT_WEIGHTS.find((w) => w.value === prefs.fontWeight)?.css ?? "400";
+  document.documentElement.style.setProperty("--reader-font-size", `${fontPx}px`);
+  document.documentElement.style.setProperty("--reader-line-height", prefs.lineHeight);
+  document.documentElement.style.setProperty("--reader-content-width", `${prefs.contentWidth}px`);
+  document.documentElement.style.setProperty("--reader-font-family", fontCss);
+  document.documentElement.style.setProperty("--reader-font-weight", weightCss);
+}
+
 export function ReaderSettings() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -88,8 +99,11 @@ export function ReaderSettings() {
         fontFamily: saved.fontFamily ?? "nanum-myeongjo",
         fontWeight: saved.fontWeight ?? "bold",
       };
-      setPrefs(loaded);
-      applyStyles(loaded);
+      applyReaderStyles(loaded);
+      const frame = requestAnimationFrame(() => {
+        setPrefs(loaded);
+      });
+      return () => cancelAnimationFrame(frame);
     }
   }, []);
 
@@ -104,20 +118,9 @@ export function ReaderSettings() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  function applyStyles(p: ReaderPrefs) {
-    const fontPx = FONT_SIZES.find((f) => f.value === p.fontSize)?.px ?? 16;
-    const fontCss = FONT_FAMILIES.find((f) => f.value === p.fontFamily)?.css ?? "'Noto Serif JP', serif";
-    const weightCss = FONT_WEIGHTS.find((w) => w.value === p.fontWeight)?.css ?? "400";
-    document.documentElement.style.setProperty("--reader-font-size", `${fontPx}px`);
-    document.documentElement.style.setProperty("--reader-line-height", p.lineHeight);
-    document.documentElement.style.setProperty("--reader-content-width", `${p.contentWidth}px`);
-    document.documentElement.style.setProperty("--reader-font-family", fontCss);
-    document.documentElement.style.setProperty("--reader-font-weight", weightCss);
-  }
-
   function save(updated: ReaderPrefs) {
     setPrefs(updated);
-    applyStyles(updated);
+    applyReaderStyles(updated);
     writePrefsCookie(updated);
   }
 

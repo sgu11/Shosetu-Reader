@@ -29,7 +29,23 @@ describe("translationStatusResponseSchema", () => {
       translatedText: "번역된 텍스트",
       provider: "openrouter",
       modelName: "gpt-4o",
+      errorMessage: null,
       completedAt: "2026-04-10T12:00:00.000Z",
+      pendingTranslation: {
+        status: "processing",
+        modelName: "gpt-4.1-mini",
+      },
+      translations: [
+        {
+          id: "550e8400-e29b-41d4-a716-446655440001",
+          status: "available",
+          translatedText: "번역된 텍스트",
+          provider: "openrouter",
+          modelName: "gpt-4o",
+          errorMessage: null,
+          completedAt: "2026-04-10T12:00:00.000Z",
+        },
+      ],
     });
     expect(result.success).toBe(true);
   });
@@ -42,7 +58,10 @@ describe("translationStatusResponseSchema", () => {
       translatedText: null,
       provider: null,
       modelName: null,
+      errorMessage: null,
       completedAt: null,
+      pendingTranslation: null,
+      translations: [],
     });
     expect(result.success).toBe(true);
   });
@@ -55,7 +74,10 @@ describe("translationStatusResponseSchema", () => {
       translatedText: null,
       provider: null,
       modelName: null,
+      errorMessage: null,
       completedAt: null,
+      pendingTranslation: null,
+      translations: [],
     });
     expect(result.success).toBe(false);
   });

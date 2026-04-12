@@ -1,13 +1,13 @@
 import { eq, and } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { readingProgress, episodes } from "@/lib/db/schema";
-import { ensureDefaultUser } from "@/lib/auth/default-user";
+import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
 import type { UpdateProgressInput } from "../api/schemas";
 
 export async function updateReadingProgress(
   input: UpdateProgressInput,
 ): Promise<void> {
-  const userId = await ensureDefaultUser();
+  const userId = await resolveUserId();
   const db = getDb();
 
   // Look up the episode to get novelId

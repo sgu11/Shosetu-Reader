@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { novelStatusOverviewSchema } from "@/modules/catalog/api/status-overview-schema";
 
 // --- Library item (subscribed novel with progress) ---
 
@@ -15,6 +16,7 @@ export const libraryItemSchema = z.object({
   currentEpisodeNumber: z.number().int().nullable(),
   currentLanguage: z.enum(["ja", "ko"]).nullable(),
   hasNewEpisodes: z.boolean(),
+  statusOverview: novelStatusOverviewSchema,
 });
 
 export type LibraryItem = z.infer<typeof libraryItemSchema>;

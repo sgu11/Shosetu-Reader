@@ -4,11 +4,12 @@
 
 - Next.js 16 (App Router) + TypeScript
 - Drizzle ORM with PostgreSQL
-- Redis + BullMQ for job queue (Phase 3+)
+- OpenRouter (OpenAI-compatible) for JP→KR translation
 - Zod for validation
-- Tailwind CSS 4
+- Tailwind CSS 4 (dark-mode-native, Supabase-inspired)
 - Vitest for testing
 - pnpm as package manager
+- Docker for production deployment
 
 ## Commands
 
@@ -28,19 +29,18 @@
 src/
   app/              Next.js App Router pages and API routes
   components/       Shared React components
-  features/         Feature-specific UI modules
-  lib/              Shared infrastructure (db, cache, queue, i18n, logger, env)
+  lib/              Shared infrastructure (db, i18n, auth, rate-limit)
   modules/          Domain modules (modular monolith)
     source/         Syosetu API/HTML integration
     catalog/        Novel and episode domain
     library/        Subscriptions, progress, continue-reading
-    translation/    Translation pipeline
+    translation/    Translation pipeline (OpenRouter)
     reader/         Reader content assembly
     identity/       Users, sessions, preferences
-    jobs/           Job orchestration
+    jobs/           Background job orchestration
     admin/          Ops visibility
-  styles/           Global styles
 tests/              Test files mirroring src/ structure
+drizzle/            SQL migration files
 ```
 
 Each module has four layers:
@@ -51,9 +51,17 @@ Each module has four layers:
 
 API routes live in `src/app/api/` (Next.js App Router) and delegate to module application/service layers.
 
+## Key Architecture Decisions
+
+- **Reader preferences** (font, size, line height, width, weight) are stored in a per-device cookie (`reader-prefs`), not in the database
+- **Settings API** (`/api/settings`) handles only locale, readerLanguage, and theme — not reader font settings
+- **Translation** is async via OpenRouter with configurable model and per-novel prompts
+- **Bulk operations** (ingest-all, translate-all) run as background jobs with progress feedback
+- **i18n** uses EN/KR dictionaries in `src/lib/i18n/dictionaries.ts` with cookie-based locale persistence
+
 ## Coding Conventions
 
-- 2-space indentation (enforced by editor/formatter)
+- 2-space indentation
 - `camelCase` for variables/functions, `PascalCase` for types/components
 - Drizzle schema uses `snake_case` column names
 - Prefer named exports over default exports (except Next.js pages/layouts)

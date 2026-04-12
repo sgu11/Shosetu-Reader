@@ -2,6 +2,10 @@ import Link from "next/link";
 import { getLibrary } from "@/modules/library/application/get-library";
 import { getLocale, t } from "@/lib/i18n";
 
+function shortModelName(modelName: string): string {
+  return modelName.split("/").pop() ?? modelName;
+}
+
 export default async function LibraryPage() {
   const locale = await getLocale();
   const { items, totalCount } = await getLibrary();
@@ -56,6 +60,29 @@ export default async function LibraryPage() {
                       }
                     >
                       {item.isCompleted ? t(locale, "library.completed") : t(locale, "library.ongoing")}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted">
+                  <span className="rounded-full bg-surface-strong px-2.5 py-1">
+                    {t(locale, "status.fetched")} {item.statusOverview.fetchedEpisodes}
+                    {item.totalEpisodes != null ? `/${item.totalEpisodes}` : ""}
+                  </span>
+                  <span className="rounded-full bg-success/10 px-2.5 py-1 text-success">
+                    {t(locale, "status.translated")} {item.statusOverview.translatedEpisodes}
+                  </span>
+                  {item.statusOverview.translatedByModel.slice(0, 3).map((model) => (
+                    <span
+                      key={model.modelName}
+                      className="rounded-full border border-border px-2.5 py-1"
+                      title={model.modelName}
+                    >
+                      {shortModelName(model.modelName)} {model.translatedEpisodes}
+                    </span>
+                  ))}
+                  {item.statusOverview.translatedByModel.length > 3 && (
+                    <span className="rounded-full border border-border px-2.5 py-1">
+                      +{item.statusOverview.translatedByModel.length - 3}
                     </span>
                   )}
                 </div>

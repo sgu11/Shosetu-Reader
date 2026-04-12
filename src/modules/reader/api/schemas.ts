@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { pendingTranslationSchema } from "@/modules/translation/api/schemas";
 
 // --- Reader payload — the main response for the reading screen ---
 
@@ -32,6 +33,7 @@ export const readerPayloadSchema = z.object({
       completedAt: z.string().nullable(),
     }),
   ),
+  pendingTranslation: pendingTranslationSchema.nullable(),
   configuredModel: z.string(),
   navigation: z.object({
     prevEpisodeId: z.string().uuid().nullable(),

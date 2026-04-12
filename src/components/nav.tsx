@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useTranslation } from "@/lib/i18n/client";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { ProfileSwitcher } from "@/components/profile-switcher";
 
 export function Nav() {
   const { t } = useTranslation();
@@ -13,6 +14,7 @@ export function Nav() {
     { href: "/ranking", label: t("nav.ranking") },
     { href: "/register", label: t("nav.register") },
     { href: "/settings", label: t("nav.settings") },
+    { href: "/profiles", label: t("nav.profiles") },
   ] as const;
 
   return (
@@ -36,6 +38,7 @@ export function Nav() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <ProfileSwitcher />
           <LocaleSwitcher />
           <Link
             href="/register"

@@ -1,15 +1,16 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { subscriptions, novels, readingProgress, episodes } from "@/lib/db/schema";
-import { ensureDefaultUser } from "@/lib/auth/default-user";
 import { translateTexts } from "@/lib/translate-cache";
+import { createEmptyNovelStatusOverview, getNovelStatusOverviews } from "@/modules/catalog/application/get-novel-status-overviews";
+import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
 import type { LibraryItem } from "../api/schemas";
 
 export async function getLibrary(): Promise<{
   items: LibraryItem[];
   totalCount: number;
 }> {
-  const userId = await ensureDefaultUser();
+  const userId = await resolveUserId();
   const db = getDb();
 
   const rows = await db
@@ -43,21 +44,34 @@ export async function getLibrary(): Promise<{
     )
     .orderBy(desc(sql`COALESCE(${readingProgress.lastReadAt}, ${subscriptions.subscribedAt})`));
 
-  // Enrich with episode numbers for current reading position
+  const [statusMap, currentEpisodeRows] = await Promise.all([
+    getNovelStatusOverviews(rows.map((row) => row.novelId)),
+    (() => {
+      const currentEpisodeIds = rows
+        .map((row) => row.currentEpisodeId)
+        .filter((episodeId): episodeId is string => episodeId != null);
+
+      if (currentEpisodeIds.length === 0) {
+        return Promise.resolve([] as Array<{ id: string; episodeNumber: number }>);
+      }
+
+      return db
+        .select({
+          id: episodes.id,
+          episodeNumber: episodes.episodeNumber,
+        })
+        .from(episodes)
+        .where(inArray(episodes.id, currentEpisodeIds));
+    })(),
+  ]);
+
+  const currentEpisodeNumberMap = new Map(
+    currentEpisodeRows.map((row) => [row.id, row.episodeNumber]),
+  );
+
   const items: LibraryItem[] = [];
 
   for (const row of rows) {
-    let currentEpisodeNumber: number | null = null;
-
-    if (row.currentEpisodeId) {
-      const [ep] = await db
-        .select({ episodeNumber: episodes.episodeNumber })
-        .from(episodes)
-        .where(eq(episodes.id, row.currentEpisodeId))
-        .limit(1);
-      currentEpisodeNumber = ep?.episodeNumber ?? null;
-    }
-
     items.push({
       novelId: row.novelId,
       titleJa: row.titleJa,
@@ -68,9 +82,12 @@ export async function getLibrary(): Promise<{
       totalEpisodes: row.totalEpisodes,
       subscribedAt: row.subscribedAt.toISOString(),
       lastReadAt: row.lastReadAt?.toISOString() ?? null,
-      currentEpisodeNumber,
+      currentEpisodeNumber: row.currentEpisodeId
+        ? (currentEpisodeNumberMap.get(row.currentEpisodeId) ?? null)
+        : null,
       currentLanguage: row.currentLanguage ?? null,
       hasNewEpisodes: false, // TODO: compare totalEpisodes with last checked count
+      statusOverview: statusMap[row.novelId] ?? createEmptyNovelStatusOverview(),
     });
   }
 
@@ -89,7 +106,7 @@ export async function getContinueReading(): Promise<
     lastReadAt: string;
   }>
 > {
-  const userId = await ensureDefaultUser();
+  const userId = await resolveUserId();
   const db = getDb();
 
   const rows = await db

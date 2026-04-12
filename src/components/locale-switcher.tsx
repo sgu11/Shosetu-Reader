@@ -9,6 +9,15 @@ export function LocaleSwitcher() {
 
   async function switchLocale(newLocale: string) {
     document.cookie = `locale=${newLocale};path=/;max-age=${60 * 60 * 24 * 365}`;
+    try {
+      await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locale: newLocale }),
+      });
+    } catch {
+      // silent — cookie fallback still works for guest flow
+    }
     router.refresh();
   }
 

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { users } from "@/lib/db/schema";
-import { ensureDefaultUser } from "@/lib/auth/default-user";
 import { rateLimit } from "@/lib/rate-limit";
+import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
 
 // 30 settings reads per minute, 10 writes per minute
 const READ_LIMIT = { limit: 30, windowSeconds: 60 };
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const limited = rateLimit(req, READ_LIMIT, "settings-r");
   if (limited) return limited;
   try {
-    const userId = await ensureDefaultUser();
+    const userId = await resolveUserId();
     const db = getDb();
 
     const [user] = await db
@@ -42,7 +42,7 @@ export async function PUT(req: NextRequest) {
   if (limited) return limited;
 
   try {
-    const userId = await ensureDefaultUser();
+    const userId = await resolveUserId();
     const db = getDb();
     const body = await req.json();
 

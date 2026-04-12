@@ -7,6 +7,10 @@ export const dictionaries = {
     "nav.register": "Register",
     "nav.addNovel": "Add novel",
     "nav.brand": "Shosetu Reader",
+    "nav.settings": "Settings",
+    "nav.profiles": "Profiles",
+    "status.fetched": "Fetched",
+    "status.translated": "Translated",
 
     // Home
     "home.title": "Shosetu Reader",
@@ -60,8 +64,11 @@ export const dictionaries = {
     "subscribe.subscribe": "Subscribe",
 
     // Ingest button
+    "ingest.actions": "Actions",
+    "ingest.ingestGroup": "Ingest",
+    "ingest.translateGroup": "Translate",
     "ingest.ingest": "Ingest episodes",
-    "ingest.ingesting": "Ingesting...",
+    "ingest.ingesting": "Processing...",
     "ingest.ingestAll": "Ingest all episodes",
     "ingest.ingestAllStarted": "Fetching all episodes in background ({discovered} new discovered)",
     "ingest.result": "Discovered {discovered} new episodes. Fetched {fetched}, failed {failed}.",
@@ -71,6 +78,9 @@ export const dictionaries = {
     "ingest.bulkTranslating": "Requesting translations...",
     "ingest.bulkTranslateResult": "{queued} translations queued",
     "ingest.bulkTranslateAllStarted": "Translating all {total} episodes in background",
+    "ingest.ingestAllProgress": "Fetching episodes {processed}/{total} ({fetched} fetched, {failed} failed)",
+    "ingest.bulkTranslateAllProgress": "Queueing translations {processed}/{total} ({queued} queued, {failed} failed)",
+    "ingest.backgroundFailed": "Background job failed",
     "ingest.bulkTranslateNone": "No untranslated episodes found",
 
     // Reader
@@ -86,6 +96,22 @@ export const dictionaries = {
     "translation.rateLimited": "Rate limited — try another model",
     "translation.retranslate": "Re-translate",
     "translation.selectModel": "Select translation",
+    "translation.model": "Model",
+    "translation.currentModel": "Current model",
+    "translation.openSettings": "Open model settings",
+    "translation.noSavedTranslations": "No saved translations for this episode yet.",
+    "translation.inventoryTitle": "Translation inventory",
+    "translation.inventorySubtitle": "Remove saved translations before re-running with a new prompt or model.",
+    "translation.availableCount": "Available",
+    "translation.discardAll": "Discard all",
+    "translation.discardModel": "Discard model",
+    "translation.discardSingle": "Discard translation",
+    "translation.discardShort": "Del",
+    "translation.discarding": "Discarding...",
+    "translation.inventoryEmpty": "No saved translations for this novel yet.",
+    "translation.confirmDiscardSingle": "Discard this saved translation?",
+    "translation.confirmDiscardAll": "Discard all saved Korean translations for this novel?",
+    "translation.confirmDiscardModel": "Discard saved translations for model {model}?",
 
     // Ranking
     "ranking.title": "Ranking",
@@ -128,13 +154,44 @@ export const dictionaries = {
     "settings.globalPromptPlaceholder": "Enter additional translation guidelines (e.g. honorific handling, style preferences)...",
     "settings.useDefault": "Use default",
 
+    // Profiles
+    "profile.loading": "Loading profiles...",
+    "profile.title": "Profiles",
+    "profile.subtitle": "Create local reader profiles and switch between personalized library, settings, and reading progress.",
+    "profile.create": "Create profile",
+    "profile.creating": "Creating...",
+    "profile.namePlaceholder": "Profile name",
+    "profile.importGuestData": "Import current guest data into this profile",
+    "profile.listTitle": "Available profiles",
+    "profile.select": "Select",
+    "profile.switching": "Switching...",
+    "profile.current": "Current",
+    "profile.empty": "No profiles yet.",
+    "profile.guest": "Guest profile",
+    "profile.useGuest": "Use guest",
+    "profile.manage": "Manage",
+    "profile.active": "Active",
+
     // Novel translation prompt
     "novelPrompt.title": "Translation prompt",
     "novelPrompt.subtitle": "Title-specific translation instructions (character names, tone, etc.)",
     "novelPrompt.placeholder": "e.g. Main character 田中 should be kept as 타나카. Use formal tone for narration.",
 
-    // Nav
-    "nav.settings": "Settings",
+    // Auth
+    "auth.loading": "Loading...",
+    "auth.title": "Sign in",
+    "auth.subtitle": "Use an email to load your personal library, settings, and continue-reading state.",
+    "auth.email": "Email",
+    "auth.displayName": "Display name",
+    "auth.displayNamePlaceholder": "Optional name",
+    "auth.signIn": "Sign in",
+    "auth.signingIn": "Signing in...",
+    "auth.signOut": "Sign out",
+    "auth.signedInAs": "Signed in as",
+    "auth.invalidCredentials": "Please check your details and try again.",
+    "auth.networkError": "Network error. Please try again.",
+    "auth.guestHint": "Prefer not to sign in?",
+    "auth.continueAsGuest": "Continue as guest",
 
     // Locale names
     "locale.en": "English",
@@ -149,6 +206,10 @@ export const dictionaries = {
     "nav.register": "등록",
     "nav.addNovel": "소설 추가",
     "nav.brand": "나로우 리더",
+    "nav.settings": "설정",
+    "nav.profiles": "프로필",
+    "status.fetched": "수집",
+    "status.translated": "번역",
 
     // Home
     "home.title": "나로우 리더",
@@ -202,8 +263,11 @@ export const dictionaries = {
     "subscribe.subscribe": "구독",
 
     // Ingest button
+    "ingest.actions": "작업",
+    "ingest.ingestGroup": "수집",
+    "ingest.translateGroup": "번역",
     "ingest.ingest": "에피소드 수집",
-    "ingest.ingesting": "수집 중...",
+    "ingest.ingesting": "처리 중...",
     "ingest.ingestAll": "전체 에피소드 수집",
     "ingest.ingestAllStarted": "백그라운드에서 전체 에피소드 수집 중 (신규 {discovered}화 발견)",
     "ingest.result": "새 에피소드 {discovered}화 발견. {fetched}화 수집, {failed}화 실패.",
@@ -213,6 +277,9 @@ export const dictionaries = {
     "ingest.bulkTranslating": "번역 요청 중...",
     "ingest.bulkTranslateResult": "{queued}화 번역 대기열 추가",
     "ingest.bulkTranslateAllStarted": "전체 {total}화 백그라운드 번역 시작",
+    "ingest.ingestAllProgress": "에피소드 수집 중 {processed}/{total} ({fetched}화 완료, {failed}화 실패)",
+    "ingest.bulkTranslateAllProgress": "번역 대기열 추가 중 {processed}/{total} ({queued}화 대기열, {failed}화 실패)",
+    "ingest.backgroundFailed": "백그라운드 작업이 실패했습니다",
     "ingest.bulkTranslateNone": "미번역 에피소드가 없습니다",
 
     // Reader
@@ -228,6 +295,22 @@ export const dictionaries = {
     "translation.rateLimited": "요청 제한 — 다른 모델로 시도",
     "translation.retranslate": "재번역",
     "translation.selectModel": "번역 선택",
+    "translation.model": "모델",
+    "translation.currentModel": "현재 모델",
+    "translation.openSettings": "모델 설정 열기",
+    "translation.noSavedTranslations": "이 에피소드에는 아직 저장된 번역이 없습니다.",
+    "translation.inventoryTitle": "번역 보관함",
+    "translation.inventorySubtitle": "새 프롬프트나 모델로 다시 번역하기 전에 저장된 번역을 정리할 수 있습니다.",
+    "translation.availableCount": "사용 가능",
+    "translation.discardAll": "전체 삭제",
+    "translation.discardModel": "모델 삭제",
+    "translation.discardSingle": "번역 삭제",
+    "translation.discardShort": "삭제",
+    "translation.discarding": "삭제 중...",
+    "translation.inventoryEmpty": "이 작품에는 아직 저장된 번역이 없습니다.",
+    "translation.confirmDiscardSingle": "이 저장된 번역을 삭제할까요?",
+    "translation.confirmDiscardAll": "이 작품의 저장된 한국어 번역을 모두 삭제할까요?",
+    "translation.confirmDiscardModel": "모델 {model}의 저장된 번역을 삭제할까요?",
 
     // Ranking
     "ranking.title": "랭킹",
@@ -270,13 +353,44 @@ export const dictionaries = {
     "settings.globalPromptPlaceholder": "추가 번역 가이드라인을 입력하세요 (예: 존댓말 처리, 문체 선호 등)...",
     "settings.useDefault": "기본값 사용",
 
+    // Profiles
+    "profile.loading": "프로필 불러오는 중...",
+    "profile.title": "프로필",
+    "profile.subtitle": "로컬 리더 프로필을 만들고, 서재·설정·읽기 진행 상태를 프로필별로 전환하세요.",
+    "profile.create": "프로필 만들기",
+    "profile.creating": "생성 중...",
+    "profile.namePlaceholder": "프로필 이름",
+    "profile.importGuestData": "현재 게스트 데이터를 이 프로필로 가져오기",
+    "profile.listTitle": "사용 가능한 프로필",
+    "profile.select": "선택",
+    "profile.switching": "전환 중...",
+    "profile.current": "현재 사용 중",
+    "profile.empty": "아직 프로필이 없습니다.",
+    "profile.guest": "게스트 프로필",
+    "profile.useGuest": "게스트 사용",
+    "profile.manage": "관리",
+    "profile.active": "활성",
+
     // Novel translation prompt
     "novelPrompt.title": "번역 프롬프트",
     "novelPrompt.subtitle": "작품별 번역 지시사항 (캐릭터명, 분위기 등)",
     "novelPrompt.placeholder": "예: 주인공 田中는 타나카로 유지. 내레이션은 격식체로 번역.",
 
-    // Nav
-    "nav.settings": "설정",
+    // Auth
+    "auth.loading": "불러오는 중...",
+    "auth.title": "로그인",
+    "auth.subtitle": "이메일로 로그인하여 개인 설정, 서재, 이어읽기 상태를 불러오세요.",
+    "auth.email": "이메일",
+    "auth.displayName": "표시 이름",
+    "auth.displayNamePlaceholder": "선택 사항",
+    "auth.signIn": "로그인",
+    "auth.signingIn": "로그인 중...",
+    "auth.signOut": "로그아웃",
+    "auth.signedInAs": "로그인 사용자",
+    "auth.invalidCredentials": "입력 내용을 확인하고 다시 시도해 주세요.",
+    "auth.networkError": "네트워크 오류. 다시 시도해 주세요.",
+    "auth.guestHint": "로그인하지 않고 사용할까요?",
+    "auth.continueAsGuest": "게스트로 계속",
 
     // Locale names
     "locale.en": "English",

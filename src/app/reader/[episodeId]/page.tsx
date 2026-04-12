@@ -19,8 +19,18 @@ export default async function ReaderPage({ params }: Props) {
     notFound();
   }
 
-  const { novel, episode, translation, translations: availableTranslations, configuredModel, navigation } = payload;
+  const {
+    novel,
+    episode,
+    translation,
+    translations: availableTranslations,
+    pendingTranslation,
+    configuredModel,
+    navigation,
+    progress,
+  } = payload;
   const paragraphs = episode.sourceTextJa?.split("\n") ?? [];
+  const initialReaderLanguage = progress?.currentLanguage ?? "ja";
 
   const initialTranslation = translation
     ? {
@@ -33,7 +43,12 @@ export default async function ReaderPage({ params }: Props) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <ProgressTracker episodeId={episodeId} language="ja" />
+      <ProgressTracker
+        episodeId={episodeId}
+        initialLanguage={initialReaderLanguage}
+        initialScrollAnchor={progress?.scrollAnchor ?? null}
+        initialProgressPercent={progress?.progressPercent ?? null}
+      />
 
       {/* Reader header — minimal chrome */}
       <header className="sticky top-0 z-10 border-b border-border bg-background/90 backdrop-blur-sm">
@@ -48,8 +63,10 @@ export default async function ReaderPage({ params }: Props) {
             <TranslationToggle
               episodeId={episodeId}
               initialTranslation={initialTranslation}
+              initialLanguage={initialReaderLanguage}
               configuredModel={configuredModel}
               availableTranslations={availableTranslations}
+              pendingTranslation={pendingTranslation}
             />
             <ReaderSettings />
           </div>
@@ -118,7 +135,11 @@ export default async function ReaderPage({ params }: Props) {
               className="reader-text space-y-1 tracking-wide text-secondary"
             >
               {paragraphs.map((line, i) => (
-                <p key={i} className={line.trim() === "" ? "h-6" : ""}>
+                <p
+                  key={i}
+                  data-reader-paragraph={`p-${i}`}
+                  className={line.trim() === "" ? "h-6" : ""}
+                >
                   {line}
                 </p>
               ))}

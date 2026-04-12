@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { resolveActiveProfileContext } from "@/modules/identity/application/profiles";
 import { dictionaries, type Locale, type TranslationKey } from "./dictionaries";
 
 export type { Locale, TranslationKey };
@@ -9,6 +10,11 @@ const DEFAULT_LOCALE: Locale = "ko";
 
 /** Read locale from cookies (server-side). */
 export async function getLocale(): Promise<Locale> {
+  const activeProfile = await resolveActiveProfileContext();
+  if (activeProfile) {
+    return activeProfile.preferredUiLocale;
+  }
+
   const store = await cookies();
   const value = store.get(COOKIE_NAME)?.value;
   if (value === "en" || value === "ko") return value;

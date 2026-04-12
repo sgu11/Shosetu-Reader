@@ -117,7 +117,14 @@ export async function fetchAndPersistEpisode(episodeId: string): Promise<void> {
 export async function fetchPendingEpisodes(
   novelId: string,
   limit: number = 5,
-): Promise<{ fetched: number; failed: number }> {
+  onProgress?: (progress: {
+    processed: number;
+    total: number;
+    fetched: number;
+    failed: number;
+    currentEpisodeId: string;
+  }) => Promise<void> | void,
+): Promise<{ fetched: number; failed: number; total: number }> {
   const db = getDb();
 
   const pending = await db
@@ -131,8 +138,9 @@ export async function fetchPendingEpisodes(
 
   let fetched = 0;
   let failed = 0;
+  const total = pending.length;
 
-  for (const ep of pending) {
+  for (const [index, ep] of pending.entries()) {
     try {
       await fetchAndPersistEpisode(ep.id);
       fetched++;
@@ -140,11 +148,19 @@ export async function fetchPendingEpisodes(
       failed++;
     }
 
+    await onProgress?.({
+      processed: index + 1,
+      total,
+      fetched,
+      failed,
+      currentEpisodeId: ep.id,
+    });
+
     // Rate limit between fetches
-    if (pending.indexOf(ep) < pending.length - 1) {
+    if (index < pending.length - 1) {
       await new Promise((resolve) => setTimeout(resolve, FETCH_DELAY_MS));
     }
   }
 
-  return { fetched, failed };
+  return { fetched, failed, total };
 }

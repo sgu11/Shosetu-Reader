@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { novelStatusOverviewSchema } from "./status-overview-schema";
 
 // --- Novel detail response ---
 
@@ -16,6 +17,7 @@ export const novelResponseSchema = z.object({
   totalEpisodes: z.number().int().nullable(),
   lastSourceSyncAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
+  statusOverview: novelStatusOverviewSchema,
 });
 
 export type NovelResponse = z.infer<typeof novelResponseSchema>;
