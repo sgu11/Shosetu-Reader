@@ -13,6 +13,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# Dummy DATABASE_URL so env validation passes during build (not used at runtime)
+ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 RUN pnpm build
 
 # --- Production ---
