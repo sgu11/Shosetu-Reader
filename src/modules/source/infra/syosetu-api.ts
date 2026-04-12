@@ -13,6 +13,15 @@ const SYOSETU_API_BASE = "https://api.syosetu.com/novelapi/api/";
 // general_lastup, end, general_all_no, length, novelupdated_at
 const OUTPUT_FIELDS = "t-n-w-s-gf-ga-e-nu-gl-l";
 
+export type RankingPeriod = "daily" | "weekly" | "monthly" | "quarterly";
+
+const RANKING_ORDER_MAP: Record<RankingPeriod, string> = {
+  daily: "dailypoint",
+  weekly: "weeklypoint",
+  monthly: "monthlypoint",
+  quarterly: "quarterpoint",
+};
+
 const syosetuNovelSchema = z.object({
   title: z.string(),
   ncode: z.string(),
@@ -99,4 +108,61 @@ export async function fetchNovelMetadata(
     novelUpdatedAt: rawNovel.novelupdated_at,
     raw: rawNovel,
   };
+}
+
+/**
+ * Fetch ranked novels from the Syosetu API.
+ * Uses the novel API with ordering params (dailypoint, weeklypoint, etc.)
+ */
+export async function fetchRanking(
+  period: RankingPeriod = "daily",
+  limit: number = 20,
+): Promise<SyosetuNovelMetadata[]> {
+  const order = RANKING_ORDER_MAP[period];
+  const url = new URL(SYOSETU_API_BASE);
+  url.searchParams.set("order", order);
+  url.searchParams.set("of", OUTPUT_FIELDS);
+  url.searchParams.set("out", "json");
+  url.searchParams.set("lim", String(Math.min(limit, 50)));
+
+  const res = await fetch(url.toString(), {
+    headers: { "User-Agent": "ShosetuReader/0.1" },
+  });
+
+  if (!res.ok) {
+    throw new SyosetuApiError(
+      `Syosetu ranking API returned ${res.status}`,
+      res.status,
+    );
+  }
+
+  const json = await res.json();
+
+  if (!Array.isArray(json) || json.length < 2) {
+    return [];
+  }
+
+  // First element is { allcount: N }, rest are results
+  const results: SyosetuNovelMetadata[] = [];
+  for (let i = 1; i < json.length; i++) {
+    const parsed = syosetuNovelSchema.safeParse(json[i]);
+    if (parsed.success) {
+      const raw = parsed.data;
+      results.push({
+        ncode: raw.ncode.toLowerCase(),
+        title: raw.title,
+        authorName: raw.writer,
+        summary: raw.story,
+        firstPublishedAt: raw.general_firstup,
+        lastUpdatedAt: raw.general_lastup,
+        isCompleted: raw.end === 0 && raw.general_all_no > 0,
+        totalEpisodes: raw.general_all_no,
+        totalLength: raw.length,
+        novelUpdatedAt: raw.novelupdated_at,
+        raw,
+      });
+    }
+  }
+
+  return results;
 }

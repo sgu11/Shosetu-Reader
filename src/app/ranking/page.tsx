@@ -1,0 +1,167 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+
+type Period = "daily" | "weekly" | "monthly" | "quarterly";
+
+interface RankingItem {
+  rank: number;
+  ncode: string;
+  title: string;
+  authorName: string;
+  totalEpisodes: number;
+  isCompleted: boolean;
+  novelId: string | null;
+}
+
+const periods: { value: Period; label: string }[] = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Quarterly" },
+];
+
+export default function RankingPage() {
+  const router = useRouter();
+  const [period, setPeriod] = useState<Period>("daily");
+  const [items, setItems] = useState<RankingItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [registering, setRegistering] = useState<string | null>(null);
+
+  const fetchRanking = useCallback(async (p: Period) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/ranking?period=${p}&limit=20`);
+      if (res.ok) {
+        const data = await res.json();
+        setItems(data.items);
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRanking(period);
+  }, [period, fetchRanking]);
+
+  async function handleRegister(ncode: string) {
+    setRegistering(ncode);
+    try {
+      const res = await fetch("/api/novels/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: ncode }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Update item in list with the new novelId
+        setItems((prev) =>
+          prev.map((item) =>
+            item.ncode === ncode
+              ? { ...item, novelId: data.novel.id }
+              : item,
+          ),
+        );
+      }
+    } catch {
+      // silent
+    } finally {
+      setRegistering(null);
+    }
+  }
+
+  return (
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-10">
+      <div className="space-y-2">
+        <h1 className="text-3xl font-normal leading-none tracking-tight">
+          Ranking
+        </h1>
+        <p className="text-sm text-muted">
+          Discover popular novels on Syosetu.
+        </p>
+      </div>
+
+      {/* Period tabs */}
+      <div className="flex rounded-full border border-border p-0.5 self-start">
+        {periods.map((p) => (
+          <button
+            key={p.value}
+            type="button"
+            onClick={() => setPeriod(p.value)}
+            className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
+              period === p.value
+                ? "bg-surface-strong text-foreground"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Ranking list */}
+      {loading ? (
+        <div className="surface-card rounded-xl p-8 text-center text-sm text-muted">
+          Loading rankings...
+        </div>
+      ) : items.length === 0 ? (
+        <div className="surface-card rounded-xl p-8 text-center text-sm text-muted">
+          No ranking data available.
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {items.map((item) => (
+            <div
+              key={item.ncode}
+              className="surface-card flex items-center gap-4 rounded-xl px-5 py-4"
+            >
+              {/* Rank */}
+              <span className="w-8 shrink-0 text-center text-sm font-medium text-muted">
+                {item.rank}
+              </span>
+
+              {/* Info */}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">
+                  {item.title}
+                </p>
+                <div className="flex items-center gap-3 text-xs text-muted">
+                  <span>{item.authorName}</span>
+                  <span>{item.totalEpisodes} eps</span>
+                  <span className={item.isCompleted ? "text-success" : "text-accent"}>
+                    {item.isCompleted ? "Completed" : "Ongoing"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action */}
+              {item.novelId ? (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/novels/${item.novelId}`)}
+                  className="btn-pill btn-secondary shrink-0 text-xs"
+                >
+                  View
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleRegister(item.ncode)}
+                  disabled={registering === item.ncode}
+                  className="btn-pill btn-accent shrink-0 text-xs"
+                >
+                  {registering === item.ncode ? "..." : "Register"}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </main>
+  );
+}
