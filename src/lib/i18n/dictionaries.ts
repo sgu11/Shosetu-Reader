@@ -62,8 +62,14 @@ export const dictionaries = {
     // Ingest button
     "ingest.ingest": "Ingest episodes",
     "ingest.ingesting": "Ingesting...",
+    "ingest.ingestAll": "Ingest all episodes",
+    "ingest.ingestAllStarted": "Fetching all episodes in background ({discovered} new discovered)",
     "ingest.result": "Discovered {discovered} new episodes. Fetched {fetched}, failed {failed}.",
     "ingest.networkError": "Network error",
+    "ingest.bulkTranslate": "Translate next {count}",
+    "ingest.bulkTranslating": "Requesting translations...",
+    "ingest.bulkTranslateResult": "{queued} translations queued",
+    "ingest.bulkTranslateNone": "No untranslated episodes found",
 
     // Reader
     "reader.episodeList": "Episode list",
@@ -196,8 +202,14 @@ export const dictionaries = {
     // Ingest button
     "ingest.ingest": "에피소드 수집",
     "ingest.ingesting": "수집 중...",
+    "ingest.ingestAll": "전체 에피소드 수집",
+    "ingest.ingestAllStarted": "백그라운드에서 전체 에피소드 수집 중 (신규 {discovered}화 발견)",
     "ingest.result": "새 에피소드 {discovered}화 발견. {fetched}화 수집, {failed}화 실패.",
     "ingest.networkError": "네트워크 오류",
+    "ingest.bulkTranslate": "다음 {count}화 번역",
+    "ingest.bulkTranslating": "번역 요청 중...",
+    "ingest.bulkTranslateResult": "{queued}화 번역 대기열 추가",
+    "ingest.bulkTranslateNone": "미번역 에피소드가 없습니다",
 
     // Reader
     "reader.episodeList": "에피소드 목록",
