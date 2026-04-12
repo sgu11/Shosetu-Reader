@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { getNovelById, getEpisodesByNovelId } from "@/modules/catalog/application/get-novel";
+import { isSubscribed } from "@/modules/library/application/subscribe";
 import Link from "next/link";
 import { IngestButton } from "@/components/ingest-button";
+import { SubscribeButton } from "@/components/subscribe-button";
 
 interface Props {
   params: Promise<{ novelId: string }>;
@@ -17,14 +19,21 @@ export default async function NovelDetailPage({ params }: Props) {
 
   const { episodes, totalCount } = await getEpisodesByNovelId(novelId);
 
+  let subscribed = false;
+  try {
+    subscribed = await isSubscribed(novelId);
+  } catch {
+    // DB not ready — default to unsubscribed
+  }
+
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-10">
       {/* Back link */}
       <Link
-        href="/register"
+        href="/library"
         className="text-sm text-muted hover:text-foreground transition-colors"
       >
-        &larr; Back to register
+        &larr; Library
       </Link>
 
       {/* Novel header */}
@@ -83,7 +92,10 @@ export default async function NovelDetailPage({ params }: Props) {
           </a>
         </div>
 
-        <IngestButton novelId={novelId} />
+        <div className="flex items-center gap-3">
+          <SubscribeButton novelId={novelId} initialSubscribed={subscribed} />
+          <IngestButton novelId={novelId} />
+        </div>
       </section>
 
       {/* Episode list */}

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getReaderPayload } from "@/modules/reader/application/get-reader-payload";
+import { ProgressTracker } from "@/components/progress-tracker";
 
 interface Props {
   params: Promise<{ episodeId: string }>;
@@ -19,6 +20,8 @@ export default async function ReaderPage({ params }: Props) {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <ProgressTracker episodeId={episodeId} language="ja" />
+
       {/* Reader header — minimal chrome */}
       <header className="sticky top-0 z-10 border-b border-border bg-background/90 backdrop-blur-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-3">
