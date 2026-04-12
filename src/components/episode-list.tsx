@@ -164,7 +164,7 @@ export function EpisodeList({ novelId, initialEpisodes, totalCount }: Props) {
           );
 
           const cardClass =
-            "relative overflow-hidden rounded-lg border border-border bg-surface px-5 py-3 transition-colors" +
+            "block relative overflow-hidden rounded-lg border border-border bg-surface px-5 py-3 transition-colors" +
             (isReadable ? " hover:border-border-strong hover:bg-surface-strong" : "");
           const contentClass =
             "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between";
