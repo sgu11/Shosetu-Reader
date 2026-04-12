@@ -59,6 +59,40 @@ export default async function ReaderPage({ params }: Props) {
         </div>
       </header>
 
+      {/* Top navigation */}
+      <nav className="border-b border-border">
+        <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-3">
+          {navigation.prevEpisodeId ? (
+            <Link
+              href={`/reader/${navigation.prevEpisodeId}`}
+              className="rounded-md bg-surface-strong px-5 py-2.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-contrast"
+            >
+              &larr; {t(locale, "reader.previous")}
+            </Link>
+          ) : (
+            <span />
+          )}
+
+          <Link
+            href={`/novels/${novel.id}`}
+            className="text-sm text-muted hover:text-foreground transition-colors"
+          >
+            {t(locale, "reader.episodeList")}
+          </Link>
+
+          {navigation.nextEpisodeId ? (
+            <Link
+              href={`/reader/${navigation.nextEpisodeId}`}
+              className="rounded-md bg-surface-strong px-5 py-2.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-contrast"
+            >
+              {t(locale, "reader.next")} &rarr;
+            </Link>
+          ) : (
+            <span />
+          )}
+        </div>
+      </nav>
+
       {/* Reading area */}
       <main className="reader-area mx-auto w-full flex-1 px-6 py-10">
         {/* Episode title */}
