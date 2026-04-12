@@ -4,6 +4,7 @@ import { episodes, novels, readingProgress, translations, translationSettings } 
 import { env } from "@/lib/env";
 import { translateTexts } from "@/lib/translate-cache";
 import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
+import { estimateTranslationProgress } from "@/modules/translation/application/estimate-translation-progress";
 import type { ReaderPayload } from "../api/schemas";
 
 export async function getReaderPayload(
@@ -70,6 +71,13 @@ export async function getReaderPayload(
   ) ?? null;
   const latestAvailable = allTranslations.find((r) => r.status === "available") ?? null;
   const translation = latestAvailable ?? pendingTranslation ?? allTranslations[0] ?? null;
+  const pendingProgressEstimate = pendingTranslation?.status === "processing" && episode.normalizedTextJa
+    ? await estimateTranslationProgress({
+        modelName: pendingTranslation.modelName,
+        sourceText: episode.normalizedTextJa,
+        processingStartedAt: pendingTranslation.processingStartedAt,
+      })
+    : null;
 
   // Get user's configured translation model
   const userId = await resolveUserId();
@@ -150,6 +158,7 @@ export async function getReaderPayload(
       ? {
           status: pendingTranslation.status as "queued" | "processing",
           modelName: pendingTranslation.modelName,
+          progressEstimate: pendingProgressEstimate,
         }
       : null,
     configuredModel,

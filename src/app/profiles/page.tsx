@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "@/lib/i18n/client";
 
@@ -25,26 +25,40 @@ export default function ProfilesPage() {
   const [loading, setLoading] = useState(true);
   const [busyProfileId, setBusyProfileId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [feedback, setFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null);
 
-  async function loadProfiles() {
+  function notifyProfileChanged() {
+    window.dispatchEvent(new Event("profile-changed"));
+  }
+
+  const loadProfiles = useCallback(async (options?: { showError?: boolean }) => {
     setLoading(true);
     try {
       const res = await fetch("/api/profiles");
+      if (!res.ok) {
+        if (options?.showError !== false) {
+          setFeedback({ tone: "error", message: t("profile.loadFailed") });
+        }
+        return;
+      }
       const data = await res.json();
       setProfiles(data);
     } catch {
-      // silent
+      if (options?.showError !== false) {
+        setFeedback({ tone: "error", message: t("profile.loadFailed") });
+      }
     } finally {
       setLoading(false);
     }
-  }
+  }, [t]);
 
   useEffect(() => {
-    void loadProfiles();
-  }, []);
+    void loadProfiles({ showError: true });
+  }, [loadProfiles]);
 
   async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setFeedback(null);
     setCreating(true);
     try {
       const res = await fetch("/api/profiles", {
@@ -57,15 +71,23 @@ export default function ProfilesPage() {
       });
       if (res.ok) {
         setDisplayName("");
-        await loadProfiles();
+        await loadProfiles({ showError: false });
+        notifyProfileChanged();
+        setFeedback({ tone: "success", message: t("profile.createSuccess") });
         router.refresh();
+        return;
       }
+      setFeedback({
+        tone: "error",
+        message: await readErrorMessage(res, t("profile.createFailed")),
+      });
     } finally {
       setCreating(false);
     }
   }
 
   async function selectProfile(profileId: string) {
+    setFeedback(null);
     setBusyProfileId(profileId);
     try {
       const res = await fetch("/api/profiles/active", {
@@ -77,19 +99,36 @@ export default function ProfilesPage() {
         }),
       });
       if (res.ok) {
-        await loadProfiles();
+        await loadProfiles({ showError: false });
+        notifyProfileChanged();
+        setFeedback({ tone: "success", message: t("profile.switchSuccess") });
         router.refresh();
+        return;
       }
+      setFeedback({
+        tone: "error",
+        message: await readErrorMessage(res, t("profile.selectFailed")),
+      });
     } finally {
       setBusyProfileId(null);
     }
   }
 
   async function useGuest() {
+    setFeedback(null);
     setBusyProfileId("guest");
     try {
-      await fetch("/api/profiles/active", { method: "DELETE" });
-      await loadProfiles();
+      const res = await fetch("/api/profiles/active", { method: "DELETE" });
+      if (!res.ok) {
+        setFeedback({
+          tone: "error",
+          message: await readErrorMessage(res, t("profile.useGuestFailed")),
+        });
+        return;
+      }
+      await loadProfiles({ showError: false });
+      notifyProfileChanged();
+      setFeedback({ tone: "success", message: t("profile.guestSuccess") });
       router.refresh();
     } finally {
       setBusyProfileId(null);
@@ -107,6 +146,19 @@ export default function ProfilesPage() {
         </p>
       </div>
 
+      {feedback && (
+        <p
+          aria-live="polite"
+          className={`rounded-lg border px-4 py-3 text-sm ${
+            feedback.tone === "error"
+              ? "border-error/30 bg-error/5 text-error"
+              : "border-success/30 bg-success/5 text-success"
+          }`}
+        >
+          {feedback.message}
+        </p>
+      )}
+
       <section className="surface-card space-y-5 rounded-xl p-6">
         <h2 className="text-lg font-normal">{t("profile.create")}</h2>
 
@@ -116,6 +168,7 @@ export default function ProfilesPage() {
             value={displayName}
             onChange={(event) => setDisplayName(event.target.value)}
             placeholder={t("profile.namePlaceholder")}
+            maxLength={120}
             className="w-full rounded-md border border-border bg-surface px-4 py-2.5 text-sm text-foreground placeholder:text-muted/50 focus:border-border-strong focus:outline-none"
             required
           />
@@ -140,7 +193,7 @@ export default function ProfilesPage() {
       </section>
 
       <section className="surface-card space-y-5 rounded-xl p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-normal">{t("profile.listTitle")}</h2>
           <button
             type="button"
@@ -161,7 +214,7 @@ export default function ProfilesPage() {
             {profiles.profiles.map((profile) => (
               <div
                 key={profile.id}
-                className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-3"
+                className="flex flex-col gap-3 rounded-lg border border-border bg-surface px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>
                   <p className="text-sm font-medium text-foreground">
@@ -173,7 +226,7 @@ export default function ProfilesPage() {
                 </div>
 
                 {profile.isActive ? (
-                  <span className="rounded-full bg-success/10 px-3 py-1 text-xs text-success">
+                  <span className="self-start rounded-full bg-success/10 px-3 py-1 text-xs text-success">
                     {t("profile.current")}
                   </span>
                 ) : (
@@ -181,7 +234,7 @@ export default function ProfilesPage() {
                     type="button"
                     onClick={() => selectProfile(profile.id)}
                     disabled={busyProfileId === profile.id}
-                    className="btn-pill btn-secondary text-xs"
+                    className="btn-pill btn-secondary self-start text-xs"
                   >
                     {busyProfileId === profile.id ? t("profile.switching") : t("profile.select")}
                   </button>
@@ -193,4 +246,22 @@ export default function ProfilesPage() {
       </section>
     </main>
   );
+}
+
+async function readErrorMessage(response: Response, fallback: string) {
+  try {
+    const data = await response.json();
+    if (
+      typeof data.error === "string" &&
+      data.error.length > 0 &&
+      data.error !== "Validation failed" &&
+      data.error !== "Invalid JSON body"
+    ) {
+      return data.error;
+    }
+  } catch {
+    // Ignore parse errors and use fallback copy instead.
+  }
+
+  return fallback;
 }

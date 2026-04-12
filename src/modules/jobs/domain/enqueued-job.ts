@@ -4,7 +4,7 @@ export interface EnqueuedJob<TPayload = unknown> {
   id: string;
   kind: JobKind;
   payload: TPayload;
-  runner: "inline";
+  runner: "inline" | "redis";
   acceptedAt: string;
   entityType: string | null;
   entityId: string | null;

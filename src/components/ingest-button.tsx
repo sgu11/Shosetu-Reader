@@ -14,6 +14,7 @@ export function IngestButton({ novelId }: Props) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [resultTone, setResultTone] = useState<"info" | "success" | "error">("info");
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -31,6 +32,36 @@ export function IngestButton({ novelId }: Props) {
   }, [menuOpen]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function reconnectActiveJob() {
+      try {
+        const res = await fetch(`/api/novels/${novelId}/jobs/current`);
+        if (!res.ok) {
+          return;
+        }
+
+        const data = await res.json();
+        if (!cancelled && data.job?.id) {
+          setActiveJobId(data.job.id);
+          setResult(t("ingest.jobRestored"));
+          setResultTone("info");
+        }
+      } catch {
+        // silent
+      }
+    }
+
+    if (!activeJobId) {
+      void reconnectActiveJob();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeJobId, novelId, t]);
+
+  useEffect(() => {
     if (!activeJobId) {
       return;
     }
@@ -45,6 +76,7 @@ export function IngestButton({ novelId }: Props) {
       const nextMessage = formatJobMessage(job, t);
       if (nextMessage) {
         setResult(nextMessage);
+        setResultTone(job.status === "failed" ? "error" : job.status === "completed" ? "success" : "info");
       }
 
       if (job.status === "completed" || job.status === "failed") {
@@ -61,10 +93,12 @@ export function IngestButton({ novelId }: Props) {
     setMenuOpen(false);
     setBusy(true);
     setResult(null);
+    setResultTone("info");
     try {
       await action();
     } catch {
-      setResult(t("ingest.networkError"));
+      setResult(t("ingest.requestFailed"));
+      setResultTone("error");
     } finally {
       setBusy(false);
     }
@@ -74,8 +108,13 @@ export function IngestButton({ novelId }: Props) {
     run(async () => {
       const res = await fetch(`/api/novels/${novelId}/ingest?limit=10`, { method: "POST" });
       const data = await res.json();
-      if (!res.ok) { setResult(`Error: ${data.error}`); return; }
+      if (!res.ok) {
+        setResult(typeof data.error === "string" ? data.error : t("ingest.requestFailed"));
+        setResultTone("error");
+        return;
+      }
       setResult(t("ingest.result", { discovered: data.discovered, fetched: data.fetched, failed: data.failed }));
+      setResultTone("success");
       router.refresh();
     });
 
@@ -83,8 +122,13 @@ export function IngestButton({ novelId }: Props) {
     run(async () => {
       const res = await fetch(`/api/novels/${novelId}/ingest-all`, { method: "POST" });
       const data = await res.json();
-      if (!res.ok) { setResult(`Error: ${data.error}`); return; }
+      if (!res.ok) {
+        setResult(typeof data.error === "string" ? data.error : t("ingest.requestFailed"));
+        setResultTone("error");
+        return;
+      }
       setResult(t("ingest.ingestAllStarted", { discovered: data.discovered }));
+      setResultTone("info");
       setActiveJobId(data.jobId);
     });
 
@@ -92,9 +136,18 @@ export function IngestButton({ novelId }: Props) {
     run(async () => {
       const res = await fetch(`/api/novels/${novelId}/bulk-translate?limit=10`, { method: "POST" });
       const data = await res.json();
-      if (!res.ok) { setResult(`Error: ${data.error}`); return; }
-      if (data.queued === 0) { setResult(t("ingest.bulkTranslateNone")); }
-      else { setResult(t("ingest.bulkTranslateResult", { queued: data.queued })); }
+      if (!res.ok) {
+        setResult(typeof data.error === "string" ? data.error : t("ingest.requestFailed"));
+        setResultTone("error");
+        return;
+      }
+      if (data.queued === 0) {
+        setResult(t("ingest.bulkTranslateNone"));
+        setResultTone("info");
+      } else {
+        setResult(t("ingest.bulkTranslateResult", { queued: data.queued }));
+        setResultTone("success");
+      }
       router.refresh();
     });
 
@@ -102,9 +155,18 @@ export function IngestButton({ novelId }: Props) {
     run(async () => {
       const res = await fetch(`/api/novels/${novelId}/bulk-translate-all`, { method: "POST" });
       const data = await res.json();
-      if (!res.ok) { setResult(`Error: ${data.error}`); return; }
-      if (data.total === 0) { setResult(t("ingest.bulkTranslateNone")); }
-      else { setResult(t("ingest.bulkTranslateAllStarted", { total: data.total })); }
+      if (!res.ok) {
+        setResult(typeof data.error === "string" ? data.error : t("ingest.requestFailed"));
+        setResultTone("error");
+        return;
+      }
+      if (data.total === 0) {
+        setResult(t("ingest.bulkTranslateNone"));
+        setResultTone("info");
+      } else {
+        setResult(t("ingest.bulkTranslateAllStarted", { total: data.total }));
+        setResultTone("info");
+      }
       if (data.jobId) {
         setActiveJobId(data.jobId);
       }
@@ -114,8 +176,13 @@ export function IngestButton({ novelId }: Props) {
     run(async () => {
       const res = await fetch(`/api/novels/${novelId}/glossary`, { method: "POST" });
       const data = await res.json();
-      if (!res.ok) { setResult(`Error: ${data.error}`); return; }
+      if (!res.ok) {
+        setResult(typeof data.error === "string" ? data.error : t("ingest.requestFailed"));
+        setResultTone("error");
+        return;
+      }
       setResult(t("glossary.generatedInfo", { episodes: data.episodeCount, date: new Date().toLocaleDateString() }));
+      setResultTone("success");
       router.refresh();
     });
 
@@ -195,7 +262,18 @@ export function IngestButton({ novelId }: Props) {
       </div>
 
       {result && (
-        <p className="text-xs text-muted">{result}</p>
+        <p
+          aria-live="polite"
+          className={`text-xs ${
+            resultTone === "error"
+              ? "text-error"
+              : resultTone === "success"
+                ? "text-success"
+                : "text-muted"
+          }`}
+        >
+          {result}
+        </p>
       )}
     </div>
   );

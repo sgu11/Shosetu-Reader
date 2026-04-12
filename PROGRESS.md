@@ -1,6 +1,6 @@
 # PROGRESS.md
 
-Last updated: 2026-04-10
+Last updated: 2026-04-11
 
 ---
 
@@ -143,11 +143,12 @@ Last updated: 2026-04-10
 - Guest data migration with atomic transactions (preferences, subscriptions, progress)
 - Session auth API scaffolded (`/api/auth/*`)
 
-### V2.3 Durable Async Work — Partial
-- Inline job queue with DB persistence via `job_runs` table
-- Job polling endpoint (`/api/jobs/[jobId]`) for background progress tracking
-- Ingest-all and bulk-translate-all use job queue with progress updates
-- **Remaining**: Replace inline adapter with Redis-backed durable queue, add retry logic
+### V2.3 Durable Async Work — Done
+- Redis-backed queue adapter added behind the shared `JobQueue` port
+- Dedicated worker runtime (`scripts/worker.ts`) processes jobs outside request lifetimes
+- `job_runs` tracks queue lifecycle, progress updates, retries, and recovery metadata
+- Ingest-all, bulk-translate-all, and single-episode translation all use the queue path
+- Docker Compose now includes `redis` and a separate `worker` service
 
 ### V2.4 Reader Resume Loop — Done
 - Saved progress returned in reader payload (language, scroll anchor, progress percent)
@@ -183,26 +184,36 @@ Last updated: 2026-04-10
 - Costs displayed in: translation inventory, novel detail badges, library cards, reader model dropdown
 - EN/KO i18n keys for all cost labels
 
-### V2.9 Live Updates and Progress Estimation
-- Push or poll job/translation state changes so pages update without reload
-- Refresh library and novel status cards in near real time
-- Add translation progress bars using average throughput and request size history
-- Show ETA/confidence as an estimate, not a guarantee
+### V2.9 Live Updates and Progress Estimation — Done
+- Poll-based live refresh is now active on library and novel detail pages
+- Novel detail shows in-page progress for active background jobs
+- Processing translation status now returns ETA/progress estimates based on historical timing data
+- ETA estimation improved: cross-model fallback when per-model samples insufficient, median-based calculation, variance-aware confidence scoring
+- Per-episode translation progress bars in novel detail episode list
+- Active translation count badges on library cards and novel detail status
+- Admin translation trends endpoint (`/api/admin/translations/trends`) with per-model speed, percentiles, failure rates
+- SSE deferred: polling covers the product loop adequately
 
-### V2.10 Follow-on Work
-1. **Scheduled jobs** — Periodic ranking sync, metadata refresh
-2. **Metrics** — Queue depth monitoring, source failure reporting, translation performance trends
-3. **Light theme** — Currently dark-mode only
+### V2.10 Follow-on Work — Done
+1. **Scheduled jobs** — metadata refresh job (`catalog.metadata-refresh`) with admin trigger endpoint (`/api/admin/scheduled`)
+2. **Metrics** — unified admin metrics dashboard (`/api/admin/metrics`) with queue health, translation throughput (24h/7d/all), recent jobs, system overview
+3. **Light theme** — full light mode with CSS custom properties, cookie-persisted `data-theme` toggle in nav and settings
 
-## Remaining V2 Execution Order
-1. **V2.3 Durable Async Work** — replace inline queue with Redis-backed durable queue, add retry logic
-2. **V2.9 Live Updates and Progress Estimation** — SSE/WebSocket for real-time job and translation status
+## Deferred to Post-V2
+
+### Valid but Not Blocking Ship
+1. **SSE/WebSocket live updates** — polling covers the product loop; revisit if latency becomes a problem
+2. **External observability** — Prometheus/Grafana can layer on the existing DB-backed metrics
+3. **Ranking scheduled sync** — infrastructure exists (`/api/admin/scheduled`); add a ranking sync task when needed
 
 ## Completed V2 Phases
 - V2.1 Baseline Stabilization ✅
 - V2.2 Multi-User Foundation ✅
+- V2.3 Durable Async Work ✅
 - V2.4 Reader Resume Loop ✅
 - V2.5 Library and Novel Status Overview ✅
 - V2.6 Translation Inventory and Control ✅
 - V2.7 Model Visibility and Quick Switching ✅
 - V2.8 Cost Estimation and Observability ✅
+- V2.9 Live Updates and Progress Estimation ✅
+- V2.10 Follow-on Work ✅

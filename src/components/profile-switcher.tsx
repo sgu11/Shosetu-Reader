@@ -19,16 +19,34 @@ export function ProfileSwitcher() {
   const [activeProfile, setActiveProfile] = useState<ActiveProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
+  async function loadActiveProfile() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/profiles/active");
+      const data = await res.json();
+      setActiveProfile(data);
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    fetch("/api/profiles/active")
-      .then((res) => res.json())
-      .then((data) => setActiveProfile(data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    void loadActiveProfile();
+
+    function handleProfileChanged() {
+      void loadActiveProfile();
+    }
+
+    window.addEventListener("profile-changed", handleProfileChanged);
+    return () => window.removeEventListener("profile-changed", handleProfileChanged);
   }, []);
 
   async function switchToGuest() {
     await fetch("/api/profiles/active", { method: "DELETE" });
+    setActiveProfile({ activeProfileId: null, profile: null });
+    window.dispatchEvent(new Event("profile-changed"));
     router.refresh();
   }
 
@@ -37,7 +55,7 @@ export function ProfileSwitcher() {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       <span className="rounded-full border border-border px-3 py-1 text-xs text-muted">
         {activeProfile?.profile
           ? `${t("profile.active")}: ${activeProfile.profile.displayName}`

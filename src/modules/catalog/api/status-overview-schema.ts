@@ -9,6 +9,7 @@ export const translationModelCountSchema = z.object({
 export const novelStatusOverviewSchema = z.object({
   fetchedEpisodes: z.number().int(),
   translatedEpisodes: z.number().int(),
+  activeTranslations: z.number().int(),
   totalCostUsd: z.number().nullable(),
   translatedByModel: z.array(translationModelCountSchema),
 });

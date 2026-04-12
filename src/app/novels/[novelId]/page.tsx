@@ -6,6 +6,8 @@ import { IngestButton } from "@/components/ingest-button";
 import { SubscribeButton } from "@/components/subscribe-button";
 import { NovelGlossaryEditor } from "@/components/novel-glossary-editor";
 import { NovelTranslationInventory } from "@/components/novel-translation-inventory";
+import { NovelJobRefresh } from "@/components/novel-job-refresh";
+import { EpisodeTranslationProgress } from "@/components/episode-translation-progress";
 import { getLocale, t } from "@/lib/i18n";
 
 function shortModelName(modelName: string): string {
@@ -20,6 +22,36 @@ function formatCost(usd: number | null, locale: "en" | "ko"): string | null {
   }
   if (usd < 0.01) return `$${usd.toFixed(4)}`;
   return `$${usd.toFixed(2)}`;
+}
+
+function translationStatusLabel(
+  locale: "en" | "ko",
+  status: "queued" | "processing" | "failed",
+) {
+  switch (status) {
+    case "queued":
+      return t(locale, "status.translationQueued");
+    case "processing":
+      return t(locale, "status.translationProcessing");
+    case "failed":
+      return t(locale, "status.translationFailed");
+  }
+}
+
+function fetchStatusLabel(
+  locale: "en" | "ko",
+  status: "pending" | "fetching" | "fetched" | "failed",
+) {
+  switch (status) {
+    case "pending":
+      return t(locale, "status.fetchPending");
+    case "fetching":
+      return t(locale, "status.fetchFetching");
+    case "fetched":
+      return t(locale, "status.fetched");
+    case "failed":
+      return t(locale, "status.fetchFailed");
+  }
 }
 
 interface Props {
@@ -90,7 +122,7 @@ export default async function NovelDetailPage({ params }: Props) {
           </div>
         )}
 
-        <div className="flex items-center gap-6 text-sm text-muted">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted">
           {novel.totalEpisodes != null && (
             <span>{novel.totalEpisodes} {t(locale, "novel.episodes")}</span>
           )}
@@ -110,6 +142,11 @@ export default async function NovelDetailPage({ params }: Props) {
           <span className="rounded-full bg-success/10 px-3 py-1 text-success">
             {t(locale, "status.translated")} {novel.statusOverview.translatedEpisodes}
           </span>
+          {novel.statusOverview.activeTranslations > 0 && (
+            <span className="rounded-full bg-accent/10 px-3 py-1 text-accent animate-pulse">
+              {t(locale, "status.activeTranslations", { count: novel.statusOverview.activeTranslations })}
+            </span>
+          )}
           {formatCost(novel.statusOverview.totalCostUsd, locale) && (
             <span className="rounded-full bg-surface-strong px-3 py-1 text-muted">
               {t(locale, "translation.totalCost")} {formatCost(novel.statusOverview.totalCostUsd, locale)}
@@ -126,7 +163,7 @@ export default async function NovelDetailPage({ params }: Props) {
           ))}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <a
             href={novel.sourceUrl}
             target="_blank"
@@ -137,10 +174,12 @@ export default async function NovelDetailPage({ params }: Props) {
           </a>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <SubscribeButton novelId={novelId} initialSubscribed={subscribed} />
           <IngestButton novelId={novelId} />
         </div>
+
+        <NovelJobRefresh novelId={novelId} />
       </section>
 
       {/* Per-novel glossary & translation guidelines */}
@@ -171,11 +210,11 @@ export default async function NovelDetailPage({ params }: Props) {
               const isReadable = ep.fetchStatus === "fetched";
               const inner = (
                 <>
-                  <div className="flex items-center gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
                     <span className="text-sm text-muted">
                       #{ep.episodeNumber}
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       {locale === "ko" && ep.titleKo ? (
                         <>
                           <span className="block truncate text-sm">{ep.titleKo}</span>
@@ -188,18 +227,18 @@ export default async function NovelDetailPage({ params }: Props) {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     {ep.translationStatus === "available" ? (
                       <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs text-success" title={ep.translationModel ?? undefined}>
                         KR
                       </span>
                     ) : ep.translationStatus === "queued" || ep.translationStatus === "processing" ? (
                       <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent">
-                        {ep.translationStatus === "queued" ? "queued" : "translating"}
+                        {translationStatusLabel(locale, ep.translationStatus)}
                       </span>
                     ) : ep.translationStatus === "failed" ? (
                       <span className="rounded-full bg-error/10 px-2 py-0.5 text-xs text-error">
-                        failed
+                        {translationStatusLabel(locale, "failed")}
                       </span>
                     ) : null}
                     {ep.translationModel && ep.translationStatus === "available" && (
@@ -216,26 +255,30 @@ export default async function NovelDetailPage({ params }: Props) {
                             : "bg-surface-strong text-muted"
                       }`}
                     >
-                      {ep.fetchStatus}
+                      {fetchStatusLabel(locale, ep.fetchStatus)}
                     </span>
                   </div>
                 </>
               );
 
+              const isTranslating = ep.translationStatus === "processing";
+
               return isReadable ? (
                 <Link
                   key={ep.id}
                   href={`/reader/${ep.id}`}
-                  className="flex items-center justify-between rounded-lg border border-border bg-surface px-5 py-3 transition-colors hover:border-border-strong hover:bg-surface-strong"
+                  className="flex flex-col gap-3 rounded-lg border border-border bg-surface px-5 py-3 transition-colors hover:border-border-strong hover:bg-surface-strong sm:flex-row sm:items-center sm:justify-between"
                 >
                   {inner}
+                  {isTranslating && <EpisodeTranslationProgress episodeId={ep.id} />}
                 </Link>
               ) : (
                 <div
                   key={ep.id}
-                  className="flex items-center justify-between rounded-lg border border-border bg-surface px-5 py-3"
+                  className="flex flex-col gap-3 rounded-lg border border-border bg-surface px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   {inner}
+                  {isTranslating && <EpisodeTranslationProgress episodeId={ep.id} />}
                 </div>
               );
             })}

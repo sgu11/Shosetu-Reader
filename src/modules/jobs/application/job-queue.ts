@@ -1,11 +1,12 @@
 import type { EnqueuedJob } from "../domain/enqueued-job";
 import type { JobKind } from "../domain/job-kind";
+import { env } from "@/lib/env";
 import { InlineJobQueue } from "../infra/inline-job-queue";
-import type { JobRunResult } from "./job-runs";
+import { RedisJobQueue } from "../infra/redis-job-queue";
 
 export interface JobExecutionContext<TPayload = unknown> {
   job: EnqueuedJob<TPayload>;
-  updateProgress(result: JobRunResult): Promise<void>;
+  updateProgress(result: Record<string, unknown>): Promise<void>;
 }
 
 export interface JobEnqueueOptions {
@@ -17,7 +18,6 @@ export interface JobQueue {
   enqueue<TPayload>(
     kind: JobKind,
     payload: TPayload,
-    handler: (context: JobExecutionContext<TPayload>) => Promise<JobRunResult | void>,
     options?: JobEnqueueOptions,
   ): Promise<EnqueuedJob<TPayload>>;
 }
@@ -26,7 +26,9 @@ let activeJobQueue: JobQueue | undefined;
 
 export function getJobQueue(): JobQueue {
   if (!activeJobQueue) {
-    activeJobQueue = new InlineJobQueue();
+    activeJobQueue = env.REDIS_URL
+      ? new RedisJobQueue()
+      : new InlineJobQueue();
   }
 
   return activeJobQueue;

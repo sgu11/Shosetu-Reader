@@ -3,7 +3,8 @@ import { eq, and, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { episodes } from "@/lib/db/schema";
 import { getJobQueue } from "@/modules/jobs/application/job-queue";
-import { requestTranslation } from "@/modules/translation/application/request-translation";
+import type { BulkTranslateAllJobPayload } from "@/modules/jobs/application/job-handlers";
+import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { isValidUuid } from "@/lib/validation";
 
@@ -55,51 +56,16 @@ export async function POST(
 
   const total = untranslated.length;
   const jobQueue = getJobQueue();
+  const ownerUserId = await resolveUserId();
+  const payload: BulkTranslateAllJobPayload = {
+    novelId,
+    episodeIds: untranslated.map((episode) => episode.id),
+    ownerUserId,
+  };
 
   const job = await jobQueue.enqueue(
     "translation.bulk-translate-all",
-    {
-      novelId,
-      episodeIds: untranslated.map((episode) => episode.id),
-    },
-    async (context) => {
-      let queued = 0;
-      let failed = 0;
-
-      await context.updateProgress({
-        stage: "queueing",
-        processed: 0,
-        total,
-        queued,
-        failed,
-      });
-
-      for (const [index, episode] of untranslated.entries()) {
-        try {
-          await requestTranslation(episode.id);
-          queued++;
-        } catch {
-          failed++;
-        }
-
-        await context.updateProgress({
-          stage: "queueing",
-          processed: index + 1,
-          total,
-          queued,
-          failed,
-          currentEpisodeId: episode.id,
-        });
-      }
-
-      return {
-        stage: "completed",
-        processed: total,
-        total,
-        queued,
-        failed,
-      };
-    },
+    payload,
     {
       entityType: "novel",
       entityId: novelId,

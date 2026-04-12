@@ -35,6 +35,14 @@ describe("readerPayloadSchema", () => {
       pendingTranslation: {
         status: "processing",
         modelName: "openai/gpt-4.1-mini",
+        progressEstimate: {
+          progressPercent: 42,
+          estimatedRemainingMs: 12000,
+          estimatedTotalMs: 20000,
+          elapsedMs: 8000,
+          confidence: "medium",
+          sampleCount: 6,
+        },
       },
       configuredModel: "openai/gpt-4.1-mini",
       navigation: {

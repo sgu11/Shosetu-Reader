@@ -14,15 +14,17 @@ need in code, and the order that reduces rework.
 - Clear modular split between source, catalog, library, translation, and reader
 - Good API surface for the current product loop
 - Reader, ranking, registration, and translation all work end-to-end
+- Profile-based multi-user scoping is in place across settings, progress, and library state
+- Translation inventory, cost rollups, and model visibility are implemented
+- Poll-based live refresh exists for the main long-running product flows
 - Build, typecheck, lint, and tests are green
 
 ### Current constraints
-- User identity is still implemented as a single default user fallback
-- Background work is request-scoped fire-and-forget, not durable
-- `job_runs` exists as schema but is not yet the source of truth for work status
-- Reader resume state is only partially implemented
-- Translation inventory is modeled in the database, but operational controls are missing
-- UI refresh still depends on manual reloads after long-running work
+- Background work is still executed by an inline in-process queue, so it is not durable across process restarts
+- Translation generation for single-episode requests still runs inline after row creation
+- `job_runs` is product-visible now, but it still reflects inline execution rather than a true worker runtime
+- Live refresh is polling-based and page-level; it is not yet translation-run-aware at the episode level
+- Scheduled work and metrics aggregation do not yet exist as first-class runtime features
 
 ## V2 Architectural Decisions
 
@@ -95,6 +97,77 @@ need in code, and the order that reduces rework.
 4. Current-model visibility and quick switching
 5. Cost rollups and pricing visibility
 6. Live updates and translation ETA/progress
+
+## Deferred Goals Review
+
+### Review Summary
+- **Durable queue + worker** is still a required goal, not optional polish.
+  The current inline queue is useful for local iteration but it is still tied to
+  the app process and cannot satisfy the original reliability baseline in
+  `goal.md`.
+- **Live updates** are still valid, but the transport decision has changed.
+  Polling now covers the core product loop well enough that SSE/WebSocket is no
+  longer the immediate requirement.
+- **Translation ETA/progress** is still worth building, but only after we
+  capture enough measured run history to make estimates credible.
+- **Scheduled jobs** and **metrics** are both still valid, but they should be
+  treated as post-durable-queue phases because they depend on the same runtime
+  and lifecycle model.
+- **Light theme** remains valid UX work, but it is not on the critical path for
+  V2 reliability or async-work completeness.
+
+### Deferred Architecture Decisions
+
+#### A. Durable Jobs
+- Introduce a Redis-backed queue adapter behind the existing `JobQueue` port
+- Add a dedicated worker entrypoint that registers handlers by `JobKind`
+- Keep PostgreSQL `job_runs` as the canonical product-visible lifecycle record
+- Add retry/backoff policy in the worker layer, not in route handlers
+- Treat request handlers as enqueue-only boundaries
+
+#### B. Live Update Transport
+- Keep polling as the default product transport
+- Add narrowly scoped summary endpoints where polling needs lighter payloads
+- Do not adopt SSE/WebSocket until we see a concrete latency or server-load need
+- Keep UI components transport-agnostic so polling can later be swapped out
+
+#### C. Translation Progress and ETA
+- Record translation run metadata per completed/failed attempt:
+  - model
+  - source size
+  - token usage
+  - duration
+  - terminal status
+- Derive throughput summaries from historical runs, grouped by model and coarse
+  source-size bucket
+- Expose ETA as:
+  - estimated remaining time
+  - confidence bucket (`low`, `medium`, `high`)
+  - sample-size metadata
+- Only show ETA for active translation work; queued work should remain “waiting”
+
+#### D. Scheduled Jobs
+- Reuse the same handler registry and queue transport as user-triggered work
+- Add a scheduler layer that only enqueues jobs; it does not execute work itself
+- Start with:
+  - ranking sync
+  - stale-novel metadata refresh
+
+#### E. Metrics
+- Start with PostgreSQL-backed operational aggregates and admin endpoints
+- Measure:
+  - job volume by kind/status
+  - retry/failure rate
+  - translation duration and throughput by model
+  - source fetch failure rate
+- Treat external dashboards/alerting as a future layer, not the first step
+
+### Recommended Deferred Execution Order
+1. Durable queue + worker
+2. Translation timing history and ETA API
+3. Scheduled jobs on the durable queue
+4. Metrics/admin trend views
+5. Light theme and broader visual refinements
 
 ## Definition Of Ready For Implementation
 

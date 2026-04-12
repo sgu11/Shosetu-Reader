@@ -19,6 +19,7 @@ describe("libraryItemSchema", () => {
       statusOverview: {
         fetchedEpisodes: 12,
         translatedEpisodes: 5,
+        activeTranslations: 2,
         totalCostUsd: 0.0042,
         translatedByModel: [
           {

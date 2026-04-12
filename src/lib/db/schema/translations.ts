@@ -32,6 +32,8 @@ export const translations = pgTable(
     inputTokens: integer("input_tokens"),
     outputTokens: integer("output_tokens"),
     estimatedCostUsd: real("estimated_cost_usd"),
+    processingStartedAt: timestamp("processing_started_at", { withTimezone: true }),
+    durationMs: integer("duration_ms"),
     errorCode: text("error_code"),
     errorMessage: text("error_message"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

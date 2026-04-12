@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "worker": "node --env-file-if-exists=.env --import tsx scripts/worker.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -11,6 +12,10 @@
     "check": "pnpm lint && pnpm typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
+    "dev:verify": "pnpm check && pnpm test && pnpm build",
+    "dev:smoke": "node scripts/dev-smoke.mjs",
+    "test:browser": "playwright test",
+    "dev:loop": "pnpm dev:verify && pnpm test:browser",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"
@@ -22,9 +27,12 @@
     "postgres": "^3.4.9",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "redis": "^5.11.0",
+    "tsx": "^4.21.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

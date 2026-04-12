@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getNovelById } from "@/modules/catalog/application/get-novel";
-import {
-  discoverEpisodes,
-  fetchPendingEpisodes,
-} from "@/modules/catalog/application/ingest-episodes";
+import { discoverEpisodes } from "@/modules/catalog/application/ingest-episodes";
 import { getJobQueue } from "@/modules/jobs/application/job-queue";
+import type { IngestAllJobPayload } from "@/modules/jobs/application/job-handlers";
+import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
 import { rateLimit } from "@/lib/rate-limit";
 import { isValidUuid } from "@/lib/validation";
 
@@ -37,38 +36,17 @@ export async function POST(
   // Discover first (synchronous — fast, just TOC scrape)
   const discovered = await discoverEpisodes(novelId);
   const jobQueue = getJobQueue();
+  const ownerUserId = await resolveUserId();
+  const payload: IngestAllJobPayload = {
+    novelId,
+    limit: 9999,
+    discovered,
+    ownerUserId,
+  };
 
   const job = await jobQueue.enqueue(
     "catalog.ingest-all",
-    { novelId, limit: 9999, discovered },
-    async (context) => {
-      await context.updateProgress({
-        stage: "fetching",
-        discovered,
-        processed: 0,
-        total: 0,
-        fetched: 0,
-        failed: 0,
-      });
-
-      const result = await fetchPendingEpisodes(
-        novelId,
-        9999,
-        async (progress) => {
-          await context.updateProgress({
-            stage: "fetching",
-            discovered,
-            ...progress,
-          });
-        },
-      );
-
-      return {
-        stage: "completed",
-        discovered,
-        ...result,
-      };
-    },
+    payload,
     {
       entityType: "novel",
       entityId: novelId,

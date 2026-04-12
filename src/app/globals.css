@@ -38,6 +38,37 @@
   --reader-font-weight: 700;
 }
 
+[data-theme="light"] {
+  /* Backgrounds */
+  --background: #fafafa;
+  --surface: #ffffff;
+  --surface-strong: #f0f0f0;
+
+  /* Text */
+  --foreground: #171717;
+  --muted: #6b6b6b;
+  --secondary: #4a4a4a;
+
+  /* Brand accent — slightly deeper for contrast on white */
+  --accent: #059669;
+  --accent-hover: #047857;
+  --accent-contrast: #ffffff;
+
+  /* Semantic */
+  --success: #059669;
+  --warning: #d97706;
+  --error: #dc2626;
+
+  /* Border hierarchy */
+  --border-subtle: #f0f0f0;
+  --border: #e5e5e5;
+  --border-strong: #d4d4d4;
+  --border-accent: rgba(5, 150, 105, 0.3);
+
+  /* Deep surface for buttons */
+  --deep: #ffffff;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
@@ -141,16 +172,16 @@ a {
   cursor: not-allowed;
 }
 
-/* Primary pill — white border on deep black */
+/* Primary pill — contrasting border */
 .btn-primary {
   background: var(--deep);
   color: var(--foreground);
   border: 1px solid var(--foreground);
 }
 
-/* Secondary pill — dark border */
+/* Secondary pill — subtle border */
 .btn-secondary {
-  background: var(--deep);
+  background: var(--surface);
   color: var(--foreground);
   border: 1px solid var(--border);
 }

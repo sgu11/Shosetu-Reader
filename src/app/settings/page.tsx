@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "@/lib/i18n/client";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface ModelOption {
   id: string;
@@ -88,6 +89,17 @@ export default function SettingsPage() {
           {t("settings.translationConfig")}
         </p>
       </div>
+
+      {/* Theme */}
+      <section className="surface-card space-y-4 rounded-xl p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-normal">{t("settings.themeSection")}</h2>
+            <p className="text-xs text-muted">{t("settings.themeSectionDesc")}</p>
+          </div>
+          <ThemeToggle />
+        </div>
+      </section>
 
       {/* Model selection */}
       <section className="surface-card space-y-4 rounded-xl p-6">

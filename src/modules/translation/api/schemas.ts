@@ -23,9 +23,19 @@ export const translationRecordSchema = z.object({
 
 export type TranslationRecord = z.infer<typeof translationRecordSchema>;
 
+export const translationProgressEstimateSchema = z.object({
+  progressPercent: z.number().int().min(0).max(100),
+  estimatedRemainingMs: z.number().int().nonnegative(),
+  estimatedTotalMs: z.number().int().positive(),
+  elapsedMs: z.number().int().nonnegative(),
+  confidence: z.enum(["low", "medium", "high"]),
+  sampleCount: z.number().int().nonnegative(),
+});
+
 export const pendingTranslationSchema = z.object({
   status: z.enum(["queued", "processing"]),
   modelName: z.string(),
+  progressEstimate: translationProgressEstimateSchema.nullable(),
 });
 
 // --- Translation status response (all translations for an episode) ---

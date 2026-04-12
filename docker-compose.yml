@@ -16,6 +16,19 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   app:
     build: .
     restart: unless-stopped
@@ -26,10 +39,31 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://shosetu:shosetu@db:5432/shosetu_reader
+      REDIS_URL: redis://redis:6379
       APP_URL: https://narou.oci.lidlesseye.net
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: .
+    restart: unless-stopped
+    command: ["node", "--import", "tsx", "scripts/worker.ts"]
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://shosetu:shosetu@db:5432/shosetu_reader
+      REDIS_URL: redis://redis:6379
+      APP_URL: https://narou.oci.lidlesseye.net
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   pgdata:
+  redisdata:

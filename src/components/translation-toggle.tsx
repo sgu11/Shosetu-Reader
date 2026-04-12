@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "@/lib/i18n/client";
+import type { TranslationKey } from "@/lib/i18n";
 
 interface TranslationState {
   status: "not_requested" | "queued" | "processing" | "available" | "failed";
@@ -28,9 +29,33 @@ function formatCost(usd: number | null | undefined, locale: "en" | "ko"): string
   return `$${usd.toFixed(2)}`;
 }
 
+function formatDuration(ms: number, locale: "en" | "ko") {
+  const totalSeconds = Math.max(0, Math.round(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes > 0) {
+    return locale === "ko"
+      ? `${minutes}분 ${seconds}초`
+      : `${minutes}m ${seconds}s`;
+  }
+
+  return locale === "ko"
+    ? `${seconds}초`
+    : `${seconds}s`;
+}
+
 interface PendingTranslation {
   status: "queued" | "processing";
   modelName: string;
+  progressEstimate: {
+    progressPercent: number;
+    estimatedRemainingMs: number;
+    estimatedTotalMs: number;
+    elapsedMs: number;
+    confidence: "low" | "medium" | "high";
+    sampleCount: number;
+  } | null;
 }
 
 interface Props {
@@ -64,6 +89,7 @@ export function TranslationToggle({
   const [requesting, setRequesting] = useState(false);
   const [autoSwitchOnComplete, setAutoSwitchOnComplete] = useState(false);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [feedback, setFeedback] = useState<{ tone: "info" | "error"; message: string } | null>(null);
   const modelMenuRef = useRef<HTMLDivElement>(null);
 
   const hasTranslation = translation.status === "available";
@@ -143,6 +169,7 @@ export function TranslationToggle({
     if (requesting || isTranslating) return;
     setRequesting(true);
     setAutoSwitchOnComplete(true);
+    setFeedback(null);
     try {
       const res = await fetch(
         `/api/translations/episodes/${episodeId}/request`,
@@ -157,12 +184,22 @@ export function TranslationToggle({
         setPendingTranslation({
           status: data.status === "processing" ? "processing" : "queued",
           modelName: modelOverride ?? configuredModel,
+          progressEstimate: null,
         });
-        setTranslation((prev) => ({
-          ...prev,
-          status: data.status,
-          errorMessage: null,
-        }));
+        setTranslation((prev) => {
+          if (prev.status === "available" && data.status !== "available") {
+            return {
+              ...prev,
+              errorMessage: null,
+            };
+          }
+
+          return {
+            ...prev,
+            status: data.status,
+            errorMessage: null,
+          };
+        });
         if (data.status === "available") {
           await pollStatus();
           setAutoSwitchOnComplete(false);
@@ -170,10 +207,15 @@ export function TranslationToggle({
           setRequesting(false);
         }
       } else {
+        setFeedback({
+          tone: "error",
+          message: await readErrorMessage(res, t("translation.requestFailed")),
+        });
         setAutoSwitchOnComplete(false);
         setRequesting(false);
       }
     } catch {
+      setFeedback({ tone: "error", message: t("translation.requestFailed") });
       setAutoSwitchOnComplete(false);
       setRequesting(false);
     }
@@ -187,9 +229,13 @@ export function TranslationToggle({
   // Switch to a specific model's translation
   async function switchToModel(modelName: string) {
     setModelMenuOpen(false);
+    setFeedback(null);
     // Fetch the full translation text for this model
     const res = await fetch(`/api/translations/episodes/${episodeId}/status`);
-    if (!res.ok) return;
+    if (!res.ok) {
+      setFeedback({ tone: "error", message: t("translation.loadFailed") });
+      return;
+    }
     const data = await res.json();
     const record = data.translations?.find(
       (tr: { modelName: string; status: string }) => tr.modelName === modelName && tr.status === "available",
@@ -202,7 +248,10 @@ export function TranslationToggle({
         errorMessage: null,
       });
       setLanguage("ko");
+      return;
     }
+
+    setFeedback({ tone: "error", message: t("translation.loadFailed") });
   }
 
   async function discardTranslation(translationId: string) {
@@ -218,9 +267,14 @@ export function TranslationToggle({
     });
 
     if (!res.ok) {
+      setFeedback({
+        tone: "error",
+        message: await readErrorMessage(res, t("translation.discardFailed")),
+      });
       return;
     }
 
+    setFeedback({ tone: "info", message: t("translation.discardSuccess") });
     const status = await pollStatus();
     if (status !== "available") {
       setLanguage("ja");
@@ -268,174 +322,224 @@ export function TranslationToggle({
   const otherModels = available.filter((a) => a.modelName !== displayModel);
 
   return (
-    <div className="flex items-center gap-2">
-      {/* Language tabs */}
-      <div className="flex rounded-full border border-border p-0.5">
-        <button
-          type="button"
-          onClick={() => handleToggle("ja")}
-          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-            language === "ja"
-              ? "bg-surface-strong text-foreground"
-              : "text-muted hover:text-foreground"
-          }`}
-        >
-          JA
-        </button>
-        <button
-          type="button"
-          onClick={() => handleToggle("ko")}
-          disabled={!hasTranslation}
-          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-            language === "ko"
-              ? "bg-surface-strong text-foreground"
-              : hasTranslation
-                ? "text-muted hover:text-foreground"
-                : "text-muted/30 cursor-not-allowed"
-          }`}
-        >
-          KR
-        </button>
-      </div>
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex rounded-full border border-border p-0.5">
+          <button
+            type="button"
+            onClick={() => handleToggle("ja")}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              language === "ja"
+                ? "bg-surface-strong text-foreground"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            JA
+          </button>
+          <button
+            type="button"
+            onClick={() => handleToggle("ko")}
+            disabled={!hasTranslation}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              language === "ko"
+                ? "bg-surface-strong text-foreground"
+                : hasTranslation
+                  ? "text-muted hover:text-foreground"
+                  : "cursor-not-allowed text-muted/30"
+            }`}
+          >
+            KR
+          </button>
+        </div>
 
-      {/* Translate / Retry button — shown when no translation and not translating */}
-      {!hasTranslation && !isTranslating && !isRateLimited && (
-        <button
-          type="button"
-          onClick={() => requestTranslation()}
-          disabled={requesting}
-          className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/5 px-3 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/10 disabled:opacity-50"
-        >
-          {isFailed ? t("translation.failedRetry") : t("translation.translate")}
-          <span className="text-accent/60">{shortModel}</span>
-        </button>
-      )}
-
-      {/* Rate-limited alert — show error with suggestion to change model */}
-      {isRateLimited && (
-        <div className="flex items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/5 px-3 py-1 text-xs font-medium text-warning">
-            {t("translation.rateLimited")}
-          </span>
+        {!hasTranslation && !isTranslating && !isRateLimited && (
           <button
             type="button"
             onClick={() => requestTranslation()}
             disabled={requesting}
-            className="rounded-full border border-border px-2.5 py-1 text-xs text-muted transition-colors hover:text-foreground hover:bg-surface-strong disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/5 px-3 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/10 disabled:opacity-50"
           >
-            {t("translation.failedRetry")}
+            {isFailed ? t("translation.failedRetry") : t("translation.translate")}
+            <span className="text-accent/60">{shortModel}</span>
           </button>
-        </div>
-      )}
+        )}
 
-      {/* Translating indicator */}
-      {isTranslating && (
-        <span className="inline-flex items-center gap-1.5 text-xs text-muted">
-          <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
-          {t("translation.translating")}
-          <span className="text-muted/60">{pendingShortModel ?? shortModel}</span>
-        </span>
-      )}
-
-      <div className="relative flex items-center gap-1.5" ref={modelMenuRef}>
-        <button
-          type="button"
-          onClick={() => setModelMenuOpen(!modelMenuOpen)}
-          className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs text-muted transition-colors hover:bg-surface-strong hover:text-foreground"
-          title={displayModel}
-        >
-          <span className="text-muted/70">{t("translation.model")}</span>
-          <span>{shortModel}</span>
-          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-
-        {modelMenuOpen && (
-          <div className="absolute right-0 top-full z-20 mt-1 w-64 rounded-lg border border-border bg-surface p-1.5 space-y-1">
-            <div className="rounded-md border border-border bg-background px-3 py-2 text-xs text-muted">
-              <div>{t("translation.currentModel")}</div>
-              <div className="mt-1 truncate text-foreground" title={displayModel}>
-                {displayModel}
-              </div>
-            </div>
-
-            {available.length > 0 ? (
-              available.map((tr) => {
-                const isActive = tr.modelName === translation.modelName;
-                const short = tr.modelName.split("/").pop() ?? tr.modelName;
-
-                return (
-                  <div
-                    key={tr.id}
-                    className={`flex items-center gap-1 rounded-md px-1 py-1 ${
-                      isActive ? "bg-surface-strong" : ""
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => switchToModel(tr.modelName)}
-                      className={`flex min-w-0 flex-1 items-center justify-between rounded-md px-2 py-2 text-left text-xs transition-colors ${
-                        isActive
-                          ? "text-foreground"
-                          : "text-muted hover:bg-surface-strong hover:text-foreground"
-                      }`}
-                      title={tr.modelName}
-                    >
-                      <span className="truncate">{short}</span>
-                      <span className="ml-2 flex shrink-0 items-center gap-1.5">
-                        {formatCost(tr.estimatedCostUsd, locale) && (
-                          <span className="text-muted/50">{formatCost(tr.estimatedCostUsd, locale)}</span>
-                        )}
-                        {isActive && (
-                          <span className="text-accent">&#10003;</span>
-                        )}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => discardTranslation(tr.id)}
-                      className="rounded-md px-2 py-2 text-xs text-error transition-colors hover:bg-error/5"
-                      title={t("translation.discardSingle")}
-                    >
-                      {t("translation.discardShort")}
-                    </button>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="px-3 py-2 text-xs text-muted">
-                {t("translation.noSavedTranslations")}
-              </p>
-            )}
-
-            <div className="border-t border-border" />
-
-            {(!translation.modelName || translation.modelName !== configuredModel || otherModels.length === 0) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setModelMenuOpen(false);
-                  requestTranslation(configuredModel);
-                }}
-                disabled={requesting || isTranslating}
-                className="flex w-full items-center gap-1.5 rounded-md px-3 py-2 text-left text-xs text-accent transition-colors hover:bg-surface-strong disabled:opacity-50"
-                title={configuredModel}
-              >
-                {hasTranslation ? t("translation.retranslate") : t("translation.translate")}
-                <span className="text-accent/60">{configuredShortModel}</span>
-              </button>
-            )}
-
-            <Link
-              href="/settings"
-              className="block rounded-md px-3 py-2 text-xs text-muted transition-colors hover:bg-surface-strong hover:text-foreground"
+        {isRateLimited && (
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/5 px-3 py-1 text-xs font-medium text-warning">
+              {t("translation.rateLimited")}
+            </span>
+            <button
+              type="button"
+              onClick={() => requestTranslation()}
+              disabled={requesting}
+              className="rounded-full border border-border px-2.5 py-1 text-xs text-muted transition-colors hover:bg-surface-strong hover:text-foreground disabled:opacity-50"
             >
-              {t("translation.openSettings")}
-            </Link>
+              {t("translation.failedRetry")}
+            </button>
           </div>
         )}
+
+        {isTranslating && (
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted">
+            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+            {t("translation.translating")}
+            <span className="text-muted/60">{pendingShortModel ?? shortModel}</span>
+          </span>
+        )}
+
+        <div className="relative flex items-center gap-1.5" ref={modelMenuRef}>
+          <button
+            type="button"
+            onClick={() => setModelMenuOpen(!modelMenuOpen)}
+            className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs text-muted transition-colors hover:bg-surface-strong hover:text-foreground"
+            title={displayModel}
+          >
+            <span className="text-muted/70">{t("translation.model")}</span>
+            <span>{shortModel}</span>
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {modelMenuOpen && (
+            <div className="absolute right-0 top-full z-20 mt-1 w-64 space-y-1 rounded-lg border border-border bg-surface p-1.5">
+              <div className="rounded-md border border-border bg-background px-3 py-2 text-xs text-muted">
+                <div>{t("translation.currentModel")}</div>
+                <div className="mt-1 truncate text-foreground" title={displayModel}>
+                  {displayModel}
+                </div>
+              </div>
+
+              {available.length > 0 ? (
+                available.map((tr) => {
+                  const isActive = tr.modelName === translation.modelName;
+                  const short = tr.modelName.split("/").pop() ?? tr.modelName;
+
+                  return (
+                    <div
+                      key={tr.id}
+                      className={`flex items-center gap-1 rounded-md px-1 py-1 ${
+                        isActive ? "bg-surface-strong" : ""
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => switchToModel(tr.modelName)}
+                        className={`flex min-w-0 flex-1 items-center justify-between rounded-md px-2 py-2 text-left text-xs transition-colors ${
+                          isActive
+                            ? "text-foreground"
+                            : "text-muted hover:bg-surface-strong hover:text-foreground"
+                        }`}
+                        title={tr.modelName}
+                      >
+                        <span className="truncate">{short}</span>
+                        <span className="ml-2 flex shrink-0 items-center gap-1.5">
+                          {formatCost(tr.estimatedCostUsd, locale) && (
+                            <span className="text-muted/50">{formatCost(tr.estimatedCostUsd, locale)}</span>
+                          )}
+                          {isActive && <span className="text-accent">&#10003;</span>}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => discardTranslation(tr.id)}
+                        className="rounded-md px-2 py-2 text-xs text-error transition-colors hover:bg-error/5"
+                        title={t("translation.discardSingle")}
+                      >
+                        {t("translation.discardShort")}
+                      </button>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="px-3 py-2 text-xs text-muted">
+                  {t("translation.noSavedTranslations")}
+                </p>
+              )}
+
+              <div className="border-t border-border" />
+
+              {(!translation.modelName || translation.modelName !== configuredModel || otherModels.length === 0) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModelMenuOpen(false);
+                    requestTranslation(configuredModel);
+                  }}
+                  disabled={requesting || isTranslating}
+                  className="flex w-full items-center gap-1.5 rounded-md px-3 py-2 text-left text-xs text-accent transition-colors hover:bg-surface-strong disabled:opacity-50"
+                  title={configuredModel}
+                >
+                  {hasTranslation ? t("translation.retranslate") : t("translation.translate")}
+                  <span className="text-accent/60">{configuredShortModel}</span>
+                </button>
+              )}
+
+              <Link
+                href="/settings"
+                className="block rounded-md px-3 py-2 text-xs text-muted transition-colors hover:bg-surface-strong hover:text-foreground"
+              >
+                {t("translation.openSettings")}
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
+
+      {feedback && (
+        <p
+          aria-live="polite"
+          className={`text-xs ${feedback.tone === "error" ? "text-error" : "text-muted"}`}
+        >
+          {feedback.message}
+        </p>
+      )}
+
+      {pendingTranslation?.status === "processing" && pendingTranslation.progressEstimate && (
+        <div className="space-y-1 rounded-lg border border-border bg-background px-3 py-2">
+          <div className="flex items-center justify-between gap-3 text-xs text-muted">
+            <span>
+              {t("translation.etaLabel")}{" "}
+              {formatDuration(pendingTranslation.progressEstimate.estimatedRemainingMs, locale)}
+            </span>
+            <span>{getConfidenceLabel(t, pendingTranslation.progressEstimate.confidence)}</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-surface-strong">
+            <div
+              className="h-full rounded-full bg-accent transition-all"
+              style={{ width: `${pendingTranslation.progressEstimate.progressPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+async function readErrorMessage(response: Response, fallback: string) {
+  try {
+    const data = await response.json();
+    if (typeof data.error === "string" && data.error.length > 0) {
+      return data.error;
+    }
+  } catch {
+    // Ignore parse errors and fall back to local copy.
+  }
+
+  return fallback;
+}
+
+function getConfidenceLabel(
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string,
+  confidence: "low" | "medium" | "high",
+) {
+  switch (confidence) {
+    case "high":
+      return t("translation.confidenceHigh");
+    case "medium":
+      return t("translation.confidenceMedium");
+    case "low":
+      return t("translation.confidenceLow");
+  }
 }

@@ -7,6 +7,7 @@ export function createEmptyNovelStatusOverview(): NovelStatusOverview {
   return {
     fetchedEpisodes: 0,
     translatedEpisodes: 0,
+    activeTranslations: 0,
     totalCostUsd: null,
     translatedByModel: [],
   };
@@ -26,7 +27,7 @@ export async function getNovelStatusOverviews(
     uniqueNovelIds.map((novelId) => [novelId, createEmptyNovelStatusOverview()]),
   );
 
-  const [fetchRows, translatedRows, modelRows, costRows] = await Promise.all([
+  const [fetchRows, translatedRows, activeRows, modelRows, costRows] = await Promise.all([
     db
       .select({
         novelId: episodes.novelId,
@@ -47,6 +48,21 @@ export async function getNovelStatusOverviews(
           inArray(episodes.novelId, uniqueNovelIds),
           eq(translations.targetLanguage, "ko"),
           eq(translations.status, "available"),
+        ),
+      )
+      .groupBy(episodes.novelId),
+    db
+      .select({
+        novelId: episodes.novelId,
+        activeCount: sql<number>`count(*)`,
+      })
+      .from(translations)
+      .innerJoin(episodes, eq(translations.episodeId, episodes.id))
+      .where(
+        and(
+          inArray(episodes.novelId, uniqueNovelIds),
+          eq(translations.targetLanguage, "ko"),
+          sql`${translations.status} IN ('queued', 'processing')`,
         ),
       )
       .groupBy(episodes.novelId),
@@ -95,6 +111,13 @@ export async function getNovelStatusOverviews(
     statusMap[row.novelId] = {
       ...statusMap[row.novelId],
       translatedEpisodes: Number(row.translatedEpisodes ?? 0),
+    };
+  }
+
+  for (const row of activeRows) {
+    statusMap[row.novelId] = {
+      ...statusMap[row.novelId],
+      activeTranslations: Number(row.activeCount ?? 0),
     };
   }
 

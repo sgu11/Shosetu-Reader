@@ -34,6 +34,14 @@ describe("translationStatusResponseSchema", () => {
       pendingTranslation: {
         status: "processing",
         modelName: "gpt-4.1-mini",
+        progressEstimate: {
+          progressPercent: 42,
+          estimatedRemainingMs: 12000,
+          estimatedTotalMs: 20000,
+          elapsedMs: 8000,
+          confidence: "medium",
+          sampleCount: 6,
+        },
       },
       translations: [
         {

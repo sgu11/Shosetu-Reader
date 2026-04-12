@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Source_Code_Pro, Noto_Serif_JP } from "next/font/google";
+import { cookies } from "next/headers";
 import { Nav } from "@/components/nav";
 import { LocaleProvider } from "@/components/locale-provider";
 import { getLocale } from "@/lib/i18n";
@@ -28,10 +29,13 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const locale = await getLocale();
+  const cookieStore = await cookies();
+  const theme = cookieStore.get("theme")?.value === "light" ? "light" : "dark";
 
   return (
     <html
       lang={locale}
+      data-theme={theme}
       className={`${codeFont.variable} ${readerFont.variable} h-full antialiased`}
     >
       <head>

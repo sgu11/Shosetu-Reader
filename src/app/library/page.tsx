@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getLibrary } from "@/modules/library/application/get-library";
 import { getLocale, t } from "@/lib/i18n";
+import { PageAutoRefresh } from "@/components/page-auto-refresh";
 
 function shortModelName(modelName: string): string {
   return modelName.split("/").pop() ?? modelName;
@@ -22,6 +23,8 @@ export default async function LibraryPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-10">
+      <PageAutoRefresh intervalMs={15000} />
+
       <div className="space-y-2">
         <h1 className="text-3xl font-normal leading-none tracking-tight">
           {t(locale, "library.title")}
@@ -47,7 +50,7 @@ export default async function LibraryPage() {
             <Link
               key={item.novelId}
               href={`/novels/${item.novelId}`}
-              className="surface-card flex items-center justify-between rounded-xl px-6 py-4 transition-colors hover:border-border-strong hover:bg-surface-strong"
+              className="surface-card flex flex-col gap-4 rounded-xl px-6 py-4 transition-colors hover:border-border-strong hover:bg-surface-strong sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="min-w-0 flex-1 space-y-1">
                 <h2 className="truncate text-sm font-medium">
@@ -56,7 +59,7 @@ export default async function LibraryPage() {
                 {locale === "ko" && item.titleKo && (
                   <p className="truncate text-xs text-muted/60">{item.titleJa}</p>
                 )}
-                <div className="flex items-center gap-3 text-xs text-muted">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                   {item.authorName && <span>{item.authorName}</span>}
                   {item.totalEpisodes != null && (
                     <span>{item.totalEpisodes} {t(locale, "library.eps")}</span>
@@ -81,6 +84,11 @@ export default async function LibraryPage() {
                   <span className="rounded-full bg-success/10 px-2.5 py-1 text-success">
                     {t(locale, "status.translated")} {item.statusOverview.translatedEpisodes}
                   </span>
+                  {item.statusOverview.activeTranslations > 0 && (
+                    <span className="rounded-full bg-accent/10 px-2.5 py-1 text-accent animate-pulse">
+                      {t(locale, "status.activeTranslations", { count: item.statusOverview.activeTranslations })}
+                    </span>
+                  )}
                   {formatCost(item.statusOverview.totalCostUsd, locale) && (
                     <span className="rounded-full bg-surface-strong px-2.5 py-1">
                       {formatCost(item.statusOverview.totalCostUsd, locale)}
@@ -103,7 +111,7 @@ export default async function LibraryPage() {
                 </div>
               </div>
 
-              <div className="ml-4 flex shrink-0 items-center gap-3">
+              <div className="flex w-full flex-wrap items-center gap-3 sm:ml-4 sm:w-auto sm:shrink-0 sm:justify-end">
                 {item.currentEpisodeNumber != null && (
                   <span className="rounded-full bg-surface-strong px-3 py-1 text-xs text-muted">
                     {t(locale, "library.ep")} {item.currentEpisodeNumber}

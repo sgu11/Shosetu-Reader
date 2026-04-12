@@ -1,12 +1,20 @@
 import { eq, and, desc } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { translations } from "@/lib/db/schema";
+import { episodes, translations } from "@/lib/db/schema";
+import { estimateTranslationProgress } from "./estimate-translation-progress";
 import type { TranslationStatusResponse, TranslationRecord } from "../api/schemas";
 
 export async function getTranslationStatus(
   episodeId: string,
 ): Promise<TranslationStatusResponse> {
   const db = getDb();
+  const [episode] = await db
+    .select({
+      sourceTextJa: episodes.normalizedTextJa,
+    })
+    .from(episodes)
+    .where(eq(episodes.id, episodeId))
+    .limit(1);
 
   // Get all Korean translations for this episode
   const rows = await db
@@ -50,6 +58,13 @@ export async function getTranslationStatus(
   const inProgress = rows.find((r) => r.status === "queued" || r.status === "processing");
   const latestAvailable = rows.find((r) => r.status === "available");
   const active = latestAvailable ?? inProgress ?? rows[0];
+  const progressEstimate = inProgress?.status === "processing" && episode?.sourceTextJa
+    ? await estimateTranslationProgress({
+        modelName: inProgress.modelName,
+        sourceText: episode.sourceTextJa,
+        processingStartedAt: inProgress.processingStartedAt,
+      })
+    : null;
 
   return {
     episodeId,
@@ -64,6 +79,7 @@ export async function getTranslationStatus(
       ? {
           status: inProgress.status as "queued" | "processing",
           modelName: inProgress.modelName,
+          progressEstimate,
         }
       : null,
     translations: allRecords,

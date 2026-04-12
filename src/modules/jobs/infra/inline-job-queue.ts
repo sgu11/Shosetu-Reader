@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { logger } from "@/lib/logger";
+import { getJobHandler } from "../application/job-handlers";
 import type {
   JobEnqueueOptions,
   JobExecutionContext,
@@ -20,7 +21,6 @@ export class InlineJobQueue implements JobQueue {
   async enqueue<TPayload>(
     kind: JobKind,
     payload: TPayload,
-    handler: (context: JobExecutionContext<TPayload>) => Promise<JobRunResult | void>,
     options?: JobEnqueueOptions,
   ): Promise<EnqueuedJob<TPayload>> {
     const job: EnqueuedJob<TPayload> = {
@@ -47,16 +47,13 @@ export class InlineJobQueue implements JobQueue {
     });
 
     setTimeout(() => {
-      void this.run(job, handler);
+      void this.run(job);
     }, 0);
 
     return job;
   }
 
-  private async run<TPayload>(
-    job: EnqueuedJob<TPayload>,
-    handler: (context: JobExecutionContext<TPayload>) => Promise<JobRunResult | void>,
-  ) {
+  private async run<TPayload>(job: EnqueuedJob<TPayload>) {
     logger.info("Inline job started", {
       jobId: job.id,
       kind: job.kind,
@@ -64,6 +61,10 @@ export class InlineJobQueue implements JobQueue {
 
     try {
       await markJobRunning(job.id);
+      const handler = getJobHandler(job.kind) as (
+        payload: TPayload,
+        context: JobExecutionContext<TPayload>,
+      ) => Promise<JobRunResult | void>;
 
       let latestResult: JobRunResult = {};
       const context: JobExecutionContext<TPayload> = {
@@ -78,7 +79,7 @@ export class InlineJobQueue implements JobQueue {
         },
       };
 
-      const result = await handler(context);
+      const result = await handler(job.payload, context);
       const finalResult = result
         ? {
             ...latestResult,

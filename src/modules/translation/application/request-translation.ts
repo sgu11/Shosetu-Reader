@@ -3,10 +3,23 @@ import { getDb } from "@/lib/db/client";
 import { episodes, translations, translationSettings, novelGlossaries } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
+import { getJobQueue } from "@/modules/jobs/application/job-queue";
 import { OpenRouterProvider } from "../infra/openrouter-provider";
 import { estimateCost } from "./cost-estimation";
 
 const PROMPT_VERSION = "v2";
+
+export interface TranslationJobPayload {
+  translationId: string;
+  episodeId: string;
+  novelId: string;
+  ownerUserId: string;
+  sourceText: string;
+  provider: "openrouter";
+  modelName: string;
+  globalPrompt: string;
+  glossary: string;
+}
 
 /**
  * Load user's translation settings (model + global prompt) and per-novel prompt.
@@ -31,6 +44,7 @@ async function loadTranslationContext(novelId: string) {
     .limit(1);
 
   return {
+    userId,
     modelName: settings?.modelName ?? env.OPENROUTER_DEFAULT_MODEL,
     globalPrompt: settings?.globalPrompt ?? "",
     glossary: glossaryRow?.glossary ?? "",
@@ -96,12 +110,28 @@ export async function requestTranslation(
     if (existing.status === "failed") {
       await db
         .update(translations)
-        .set({ status: "queued", errorCode: null, errorMessage: null, updatedAt: new Date() })
+        .set({
+          status: "queued",
+          errorCode: null,
+          errorMessage: null,
+          completedAt: null,
+          processingStartedAt: null,
+          durationMs: null,
+          updatedAt: new Date(),
+        })
         .where(eq(translations.id, existing.id));
 
-      processTranslation(existing.id, episode.normalizedTextJa, provider).catch(
-        () => {},
-      );
+      await enqueueTranslationJob({
+        translationId: existing.id,
+        episodeId,
+        novelId: episode.novelId,
+        ownerUserId: ctx.userId,
+        sourceText: episode.normalizedTextJa,
+        provider: provider.provider,
+        modelName: provider.modelName,
+        globalPrompt: ctx.globalPrompt,
+        glossary: ctx.glossary,
+      });
 
       return { translationId: existing.id, status: "queued" };
     }
@@ -143,32 +173,73 @@ export async function requestTranslation(
     return { translationId: conflict!.id, status: conflict!.status };
   }
 
-  // Process immediately (will be async via job queue later)
-  processTranslation(row.id, episode.normalizedTextJa, provider).catch(
-    () => {
-      // Error is persisted in the translation row
-    },
-  );
+  await enqueueTranslationJob({
+    translationId: row.id,
+    episodeId,
+    novelId: episode.novelId,
+    ownerUserId: ctx.userId,
+    sourceText: episode.normalizedTextJa,
+    provider: provider.provider,
+    modelName: provider.modelName,
+    globalPrompt: ctx.globalPrompt,
+    glossary: ctx.glossary,
+  });
 
   return { translationId: row.id, status: "queued" };
 }
 
-async function processTranslation(
-  translationId: string,
-  sourceText: string,
-  provider: OpenRouterProvider,
+async function enqueueTranslationJob(payload: TranslationJobPayload) {
+  const jobQueue = getJobQueue();
+
+  await jobQueue.enqueue("translation.episode", payload, {
+    entityType: "episode",
+    entityId: payload.episodeId,
+  });
+}
+
+export async function processQueuedTranslation(
+  payload: TranslationJobPayload,
 ): Promise<void> {
   const db = getDb();
+  const provider = new OpenRouterProvider(
+    env.OPENROUTER_API_KEY ?? "",
+    payload.modelName,
+    payload.globalPrompt,
+    payload.glossary,
+  );
+
+  const [translation] = await db
+    .select({
+      status: translations.status,
+    })
+    .from(translations)
+    .where(eq(translations.id, payload.translationId))
+    .limit(1);
+
+  if (!translation) {
+    throw new Error("Translation not found");
+  }
+
+  if (translation.status === "available") {
+    return;
+  }
 
   // Mark as processing
   await db
     .update(translations)
-    .set({ status: "processing", updatedAt: new Date() })
-    .where(eq(translations.id, translationId));
+    .set({
+      status: "processing",
+      processingStartedAt: new Date(),
+      durationMs: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(translations.id, payload.translationId));
+
+  const providerStartTime = Date.now();
 
   try {
     const result = await provider.translate({
-      sourceText,
+      sourceText: payload.sourceText,
       sourceLanguage: "ja",
       targetLanguage: "ko",
     });
@@ -185,10 +256,15 @@ async function processTranslation(
         inputTokens: result.inputTokens ?? null,
         outputTokens: result.outputTokens ?? null,
         estimatedCostUsd: costUsd,
+        durationMs: providerStartTime
+          ? Date.now() - providerStartTime
+          : null,
         completedAt: new Date(),
+        errorCode: null,
+        errorMessage: null,
         updatedAt: new Date(),
       })
-      .where(eq(translations.id, translationId));
+      .where(eq(translations.id, payload.translationId));
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
 
@@ -196,10 +272,15 @@ async function processTranslation(
       .update(translations)
       .set({
         status: "failed",
+        durationMs: providerStartTime
+          ? Date.now() - providerStartTime
+          : null,
         errorCode: "TRANSLATION_ERROR",
         errorMessage: message.slice(0, 1000),
         updatedAt: new Date(),
       })
-      .where(eq(translations.id, translationId));
+      .where(eq(translations.id, payload.translationId));
+
+    throw err;
   }
 }

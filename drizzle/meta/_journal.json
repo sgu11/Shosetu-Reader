@@ -71,6 +71,20 @@
       "when": 1775960500000,
       "tag": "0009_drop_novel_translation_prompts",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1776000000000,
+      "tag": "0010_durable_job_runtime",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1776000500000,
+      "tag": "0011_translation_timing",
+      "breakpoints": true
     }
   ]
 }
