@@ -288,7 +288,7 @@ and lower cost per episode.
 
 ## V4 — Hardening, Performance, and API Efficiency
 
-Full implementation plan: [`PLAN_V4.md`](../PLAN_V4.md)
+Full implementation plan: [`docs/v4-plan.md`](v4-plan.md)
 
 V4 focused on operational hardening rather than feature expansion. The goal was
 to reduce duplicated work, lower OpenRouter spend, tighten hot query paths, and
@@ -337,3 +337,27 @@ make live updates cheaper to run.
 - `drizzle/0018_v4_indexes.sql` applied and verified against the local database
 - `drizzle/0019_v4_new_episodes_and_budget.sql` applied and verified against the local database
 - Browser QA: library page shows "새 에피소드" badge, settings page loads, no console errors
+- **Deployed to production on aries: 2026-04-14**
+
+---
+
+## V5 — New Capabilities
+
+Full implementation plan: [`docs/v5-plan.md`](v5-plan.md)
+
+V5 shifts focus from backend hardening to new user-facing capabilities. The
+foundation is stable — V5 adds new surfaces, read/export modes, and architectural
+upgrades.
+
+### V5 Status
+
+| Item | Description | Status |
+|------|-------------|--------|
+| V5.1 | Quality Warnings Dashboard | Planned |
+| V5.2 | Incremental Glossary Refresh | Planned |
+| V5.3 | Selective Re-ingest by Checksum | Planned |
+| V5.4 | Reading Statistics Page | Planned |
+| V5.5 | SSE Live Updates | Planned |
+| V5.6 | Translation Comparison Mode | Planned |
+| V5.7 | PWA / Offline Support | Planned |
+| V5.8 | EPUB Export | Planned |

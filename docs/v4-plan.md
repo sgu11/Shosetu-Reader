@@ -197,3 +197,24 @@ Expected outcome:
 - Ranking and continue-reading avoid avoidable N+1 query patterns.
 - OpenRouter model/pricing metadata is fetched through one shared cache path.
 - Admin metrics show enough information to track queue health, retries, cost, and API failures.
+
+## Completion
+
+V4 shipped to production on 2026-04-14. All items complete:
+
+| Item | Status |
+|------|--------|
+| Durable rate limiting & request dedupe | Done |
+| Consolidated novel live-status polling | Done |
+| Query/index tuning for hot paths | Done |
+| Shared OpenRouter model/pricing cache | Done |
+| Async glossary generation jobs | Done |
+| Expanded operational metrics | Done |
+| Persist translated novel metadata | Done |
+| Workload-specific model routing | Done |
+| New-episode detection on library | Done |
+| Batch title translation on ingest | Done |
+| Prompt caching awareness | Done |
+| Translation cost budget | Done |
+
+Verification: `pnpm test` (61), `pnpm check`, `pnpm build` all green. Production deploy confirmed healthy.
