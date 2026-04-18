@@ -14,6 +14,14 @@ const serverEnvSchema = z.object({
   OPENROUTER_TITLE_MODEL: z.string().optional(),
   ADMIN_API_KEY: z.string().optional(),
   TRANSLATION_COST_BUDGET_USD: z.coerce.number().positive().optional(),
+  DEMO_MODE: z
+    .union([z.literal("1"), z.literal("true"), z.literal("0"), z.literal("false"), z.literal("")])
+    .optional()
+    .transform((v) => v === "1" || v === "true"),
+  DEMO_FIXTURES_PATH: z
+    .string()
+    .optional()
+    .default("demo/seed/fixtures"),
 });
 
 export type Env = z.infer<typeof serverEnvSchema>;
@@ -30,6 +38,8 @@ const parsedEnv = serverEnvSchema.safeParse({
   OPENROUTER_TITLE_MODEL: process.env.OPENROUTER_TITLE_MODEL,
   ADMIN_API_KEY: process.env.ADMIN_API_KEY,
   TRANSLATION_COST_BUDGET_USD: process.env.TRANSLATION_COST_BUDGET_USD,
+  DEMO_MODE: process.env.DEMO_MODE,
+  DEMO_FIXTURES_PATH: process.env.DEMO_FIXTURES_PATH,
 });
 
 if (!parsedEnv.success) {

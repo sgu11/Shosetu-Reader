@@ -52,3 +52,5 @@ screenshots/
 next-env.d.ts
 .gstack/
 .superpowers/
+
+demo/output/
