@@ -1,6 +1,57 @@
 [
-  { "id": "demo-ep-1", "title_ko": "제1화 만남", "body_ko": "아침 햇살이 비추는 교실에서 그녀는 조용히 책을 펼쳤다." },
-  { "id": "demo-ep-2", "title_ko": "제2화 재회", "body_ko": "역 승강장에서 두 사람은 우연히 다시 만났다." },
-  { "id": "demo-ep-3", "title_ko": "제3화 약속", "body_ko": "해질녘 강가에서 그들은 작은 약속을 주고받았다." },
-  { "id": "demo-ep-4", "title_ko": "제4화 이별", "body_ko": "이별의 날은 생각보다 잔잔했다." }
+  {
+    "episode_id": "22222222-2222-2222-2222-222222222201",
+    "target_language": "ko",
+    "provider": "demo",
+    "model_name": "demo-model",
+    "prompt_version": "v1",
+    "source_checksum": "demo-checksum-ep-1",
+    "status": "available",
+    "is_canonical": true,
+    "translated_text": "아침 햇살이 비추는 교실에서 그녀는 조용히 책을 펼쳤다.\n창가의 벚나무가 바람에 흔들리고, 꽃잎이 책상 위로 살며시 내려앉는다.\n아무도 없는 이른 아침 도서실에서, 두 그림자가 살며시 포개졌다."
+  },
+  {
+    "episode_id": "22222222-2222-2222-2222-222222222202",
+    "target_language": "ko",
+    "provider": "demo",
+    "model_name": "demo-model",
+    "prompt_version": "v1",
+    "source_checksum": "demo-checksum-ep-2",
+    "status": "available",
+    "is_canonical": true,
+    "translated_text": "장마철 역 승강장에서 두 사람은 우연히 다시 만났다.\n젖은 우산에서 물방울이 떨어지고, 침묵은 어색하면서도 따뜻했다.\n『오랜만이네』라는 말이 유난히 무겁게 울렸다."
+  },
+  {
+    "episode_id": "22222222-2222-2222-2222-222222222203",
+    "target_language": "ko",
+    "provider": "demo",
+    "model_name": "demo-model",
+    "prompt_version": "v1",
+    "source_checksum": "demo-checksum-ep-3",
+    "status": "available",
+    "is_canonical": true,
+    "translated_text": "해질녘 강가에서 그들은 작은 약속을 주고받았다.\n강물에 비치는 노을빛 하늘을 바라보며, 새끼손가락을 걸었다.\n『꼭 다시 만나자』"
+  },
+  {
+    "episode_id": "22222222-2222-2222-2222-222222222204",
+    "target_language": "ko",
+    "provider": "demo",
+    "model_name": "demo-model",
+    "prompt_version": "v1",
+    "source_checksum": "demo-checksum-ep-4",
+    "status": "available",
+    "is_canonical": true,
+    "translated_text": "이별의 날은 생각보다 잔잔했다.\n눈이 조용히 쌓여 거리의 모든 소리를 삼킨다.\n두 사람은 각자의 길을 걷기 시작했다."
+  },
+  {
+    "episode_id": "22222222-2222-2222-2222-222222222205",
+    "target_language": "ko",
+    "provider": "demo",
+    "model_name": "demo-model",
+    "prompt_version": "v1",
+    "source_checksum": "demo-checksum-ep-5",
+    "status": "available",
+    "is_canonical": true,
+    "translated_text": "긴 여정 끝에, 그는 고향의 하늘을 올려다보았다.\n익숙한 향기와 변함없는 벚나무.\n누군가가, 작게 손을 흔들고 있었다."
+  }
 ]

@@ -1,10 +1,15 @@
-[
-  { "novel_id": "demo-novel-1", "term_ja": "教室", "term_ko": "교실", "role": "장소" },
-  { "novel_id": "demo-novel-1", "term_ja": "駅", "term_ko": "역", "role": "장소" },
-  { "novel_id": "demo-novel-1", "term_ja": "河原", "term_ko": "강가", "role": "장소" },
-  { "novel_id": "demo-novel-1", "term_ja": "故郷", "term_ko": "고향", "role": "장소" },
-  { "novel_id": "demo-novel-1", "term_ja": "彼女", "term_ko": "그녀", "role": "대명사" },
-  { "novel_id": "demo-novel-1", "term_ja": "彼", "term_ko": "그", "role": "대명사" },
-  { "novel_id": "demo-novel-1", "term_ja": "朝の光", "term_ko": "아침 햇살", "role": "표현" },
-  { "novel_id": "demo-novel-1", "term_ja": "約束", "term_ko": "약속", "role": "개념" }
-]
+{
+  "novel_id": "11111111-1111-1111-1111-111111111111",
+  "glossary_version": 1,
+  "glossary_text": "교실 = 教室\n역 = 駅\n강가 = 河原\n고향 = 故郷\n약속 = 約束\n벚꽃 = 桜",
+  "entries": [
+    { "term_ja": "教室", "term_ko": "교실", "category": "place", "status": "confirmed" },
+    { "term_ja": "駅", "term_ko": "역", "category": "place", "status": "confirmed" },
+    { "term_ja": "河原", "term_ko": "강가", "category": "place", "status": "confirmed" },
+    { "term_ja": "故郷", "term_ko": "고향", "category": "place", "status": "confirmed" },
+    { "term_ja": "彼女", "term_ko": "그녀", "category": "character", "status": "confirmed" },
+    { "term_ja": "彼", "term_ko": "그", "category": "character", "status": "confirmed" },
+    { "term_ja": "約束", "term_ko": "약속", "category": "term", "status": "confirmed" },
+    { "term_ja": "桜", "term_ko": "벚꽃", "category": "term", "status": "confirmed" }
+  ]
+}

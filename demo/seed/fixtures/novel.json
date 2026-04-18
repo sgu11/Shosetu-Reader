@@ -1,12 +1,12 @@
 {
-  "id": "demo-novel-1",
-  "ncode": "n9669bk",
-  "title_ja": "デモ小説",
-  "title_ko": "데모 소설",
-  "author_ja": "作者太郎",
-  "author_ko": "작자 타로",
-  "description_ja": "デモ用のサンプル小説です。",
-  "description_ko": "데모용 샘플 소설입니다.",
+  "id": "11111111-1111-1111-1111-111111111111",
+  "source_site": "syosetu",
+  "source_ncode": "n9669bk",
   "source_url": "https://ncode.syosetu.com/n9669bk/",
+  "title_ja": "デモ小説 〜五つの季節〜",
+  "title_ko": "데모 소설 〜다섯 계절〜",
+  "author_name": "作者太郎",
+  "summary_ja": "デモ用のサンプル小説。春夏秋冬そして閏の五章構成。",
+  "summary_ko": "데모용 샘플 소설. 봄, 여름, 가을, 겨울, 그리고 윤(閏)의 다섯 장 구성.",
   "total_episodes": 5
 }

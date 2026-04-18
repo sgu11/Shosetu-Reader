@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "worker": "node --env-file-if-exists=.env --import tsx scripts/worker.ts",
+    "demo:seed": "node --env-file-if-exists=demo/.env.demo --import tsx demo/seed/seed-demo.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
