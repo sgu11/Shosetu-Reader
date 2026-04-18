@@ -44,6 +44,7 @@
     "eslint-config-next": "16.2.3",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.4",
+    "webreel": "^0.1.4"
   }
 }
