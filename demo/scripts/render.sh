@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
+# One-shot demo render: ensure prereqs → build once → serve → record → cleanup.
+# Uses production build (lighter RAM than `next dev`) to accommodate small machines.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
-# Load demo env
 set -a
 # shellcheck disable=SC1091
 source demo/.env.demo
@@ -12,14 +13,19 @@ set +a
 
 mkdir -p demo/output
 
-DEV_PID=""
+APP_PID=""
 cleanup() {
-  if [[ -n "$DEV_PID" ]] && kill -0 "$DEV_PID" 2>/dev/null; then
-    kill "$DEV_PID" 2>/dev/null || true
-    wait "$DEV_PID" 2>/dev/null || true
+  if [[ -n "$APP_PID" ]] && kill -0 "$APP_PID" 2>/dev/null; then
+    kill "$APP_PID" 2>/dev/null || true
+    wait "$APP_PID" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT INT TERM
+
+echo "==> ensure webreel assets (chromium + ffmpeg)"
+if [[ ! -d "$HOME/.webreel" ]]; then
+  npx webreel install
+fi
 
 echo "==> db:migrate (demo DB)"
 pnpm db:migrate
@@ -27,29 +33,29 @@ pnpm db:migrate
 echo "==> seed demo data"
 pnpm demo:seed
 
-echo "==> start dev server"
-pnpm dev > demo/output/dev.log 2>&1 &
-DEV_PID=$!
+echo "==> build production bundle"
+pnpm build
+
+echo "==> start production server"
+pnpm start > demo/output/app.log 2>&1 &
+APP_PID=$!
 
 echo "==> wait for app"
-for i in $(seq 1 90); do
+for i in $(seq 1 60); do
   if curl -fsS http://localhost:3000/ > /dev/null 2>&1; then
     echo "app is up"
     break
   fi
-  if ! kill -0 "$DEV_PID" 2>/dev/null; then
-    echo "dev server died — check demo/output/dev.log"
+  if ! kill -0 "$APP_PID" 2>/dev/null; then
+    echo "app died — check demo/output/app.log"
     exit 1
   fi
   sleep 1
-  if [[ "$i" == "90" ]]; then
-    echo "app never came up after 90s"
+  if [[ "$i" == "60" ]]; then
+    echo "app never came up after 60s"
     exit 1
   fi
 done
-
-# Small extra grace for first-request compilation
-sleep 2
 
 echo "==> webreel record"
 npx webreel record --config demo/webreel.config.json
