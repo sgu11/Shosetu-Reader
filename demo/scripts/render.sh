@@ -22,11 +22,6 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "==> ensure webreel assets (chromium + ffmpeg)"
-if [[ ! -d "$HOME/.webreel" ]]; then
-  npx webreel install
-fi
-
 echo "==> db:migrate (demo DB)"
 pnpm db:migrate
 
@@ -57,8 +52,8 @@ for i in $(seq 1 60); do
   fi
 done
 
-echo "==> webreel record"
-npx webreel record --config demo/webreel.config.json
+echo "==> webreel record (auto-downloads chromium + ffmpeg on first run)"
+npx webreel record --config demo/webreel.config.json --verbose
 
 echo "==> done"
 ls -la demo/output/shosetu-demo.mp4
