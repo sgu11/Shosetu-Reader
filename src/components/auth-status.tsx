@@ -38,7 +38,11 @@ export function AuthStatus() {
   async function signOut() {
     setBusy(true);
     try {
-      await fetch("/api/auth/sign-out", { method: "POST" });
+      const { token } = await fetch("/api/auth/csrf").then((r) => r.json());
+      await fetch("/api/auth/sign-out", {
+        method: "POST",
+        headers: { "x-csrf-token": token },
+      });
       setSession(null);
       router.refresh();
     } catch {

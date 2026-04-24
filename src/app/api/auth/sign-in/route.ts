@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { signInInputSchema } from "@/modules/identity/api/schemas";
 import { signInWithEmail } from "@/modules/identity/application/session-auth";
 import { rateLimit } from "@/lib/rate-limit";
+import { validateCsrfToken } from "@/lib/auth/csrf";
 
 const SIGN_IN_RATE_LIMIT = { limit: 5, windowSeconds: 60 };
 
 export async function POST(request: NextRequest) {
   const limited = await rateLimit(request, SIGN_IN_RATE_LIMIT, "auth-sign-in");
   if (limited) return limited;
+
+  if (!(await validateCsrfToken(request))) {
+    return NextResponse.json({ error: "Invalid CSRF token" }, { status: 403 });
+  }
   let body: unknown;
 
   try {
