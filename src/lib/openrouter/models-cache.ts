@@ -146,6 +146,15 @@ async function refreshModelsInBackground() {
   return inflightRefresh;
 }
 
+/**
+ * Read the Redis-backed models cache into process memory on boot so the
+ * first request doesn't pay the cache-miss fetch. Safe to call repeatedly.
+ */
+export async function prewarmOpenRouterModelsCache() {
+  if (memoryCache || !isRedisConfigured()) return;
+  await readCachedModels();
+}
+
 export async function getOpenRouterModels(options?: {
   forceRefresh?: boolean;
   allowStale?: boolean;

@@ -7,6 +7,7 @@ import { recordOpenRouterError, recordOpenRouterUsage } from "@/lib/ops-metrics"
 import { estimateCost } from "@/modules/translation/application/cost-estimation";
 
 const BATCH_SIZE = 50;
+const BATCH_CONCURRENCY = 3;
 const NUMBER_ONLY = /^\d+$/;
 
 /**
@@ -37,17 +38,26 @@ export async function translateTexts(
   const uncached = translatable.filter((t) => !result.has(t));
   if (uncached.length === 0 || !env.OPENROUTER_API_KEY) return result;
 
-  // Translate in batches
+  // Translate in batches with bounded concurrency
+  const batches: string[][] = [];
   for (let i = 0; i < uncached.length; i += BATCH_SIZE) {
-    const batch = uncached.slice(i, i + BATCH_SIZE);
-    const translated = await translateBatch(batch);
+    batches.push(uncached.slice(i, i + BATCH_SIZE));
+  }
+
+  for (let i = 0; i < batches.length; i += BATCH_CONCURRENCY) {
+    const group = batches.slice(i, i + BATCH_CONCURRENCY);
+    const translations = await Promise.all(group.map((b) => translateBatch(b)));
 
     const rows: { titleJa: string; titleKo: string }[] = [];
-    for (let j = 0; j < batch.length; j++) {
-      const ko = translated[j];
-      if (ko && ko !== batch[j]) {
-        result.set(batch[j], ko);
-        rows.push({ titleJa: batch[j], titleKo: ko });
+    for (let g = 0; g < group.length; g++) {
+      const batch = group[g];
+      const translated = translations[g];
+      for (let j = 0; j < batch.length; j++) {
+        const ko = translated[j];
+        if (ko && ko !== batch[j]) {
+          result.set(batch[j], ko);
+          rows.push({ titleJa: batch[j], titleKo: ko });
+        }
       }
     }
 

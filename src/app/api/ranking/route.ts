@@ -24,7 +24,14 @@ export async function GET(req: NextRequest) {
     }
 
     const items = await getRanking(period as RankingPeriod, limit);
-    return NextResponse.json({ items, period });
+    return NextResponse.json(
+      { items, period },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=1800",
+        },
+      },
+    );
   } catch (err) {
     console.error("Failed to fetch ranking:", err);
     return NextResponse.json({ error: "Failed to fetch ranking" }, { status: 500 });

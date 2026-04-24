@@ -1,5 +1,26 @@
 import { createRedisConnection, getRedisClient, isRedisConfigured } from "./client";
 
+type Handler = (msg: string) => void;
+type SubClient = Awaited<ReturnType<typeof createRedisConnection>>;
+
+let sharedSub: SubClient | null = null;
+let sharedSubPromise: Promise<SubClient> | null = null;
+const handlersByChannel = new Map<string, Set<Handler>>();
+
+async function getSharedSub(): Promise<SubClient> {
+  if (sharedSub) return sharedSub;
+  if (!sharedSubPromise) {
+    sharedSubPromise = createRedisConnection().then((client) => {
+      sharedSub = client;
+      return client;
+    }).catch((err) => {
+      sharedSubPromise = null;
+      throw err;
+    });
+  }
+  return sharedSubPromise;
+}
+
 export async function publishToChannel(
   channel: string,
   payload: unknown,
@@ -14,29 +35,48 @@ export async function publishToChannel(
 }
 
 /**
- * Subscribe to a pub/sub channel with a dedicated Redis connection.
- * node-redis forbids .subscribe() on a shared client, so every subscriber
- * must hold its own socket. Callers MUST invoke the returned unsubscribe
- * function on teardown, otherwise connections leak (one per open tab).
+ * Subscribe to a pub/sub channel via a single shared Redis connection with
+ * per-channel refcounted handlers. Prior design opened a socket per
+ * subscriber (one per SSE tab) and leaked when clients force-closed.
  */
 export async function subscribeToChannel(
   channel: string,
-  onMessage: (msg: string) => void,
+  onMessage: Handler,
 ): Promise<() => Promise<void>> {
-  const sub = await createRedisConnection();
-  await sub.subscribe(channel, (message) => {
-    onMessage(message);
-  });
+  const sub = await getSharedSub();
+
+  let handlers = handlersByChannel.get(channel);
+  if (!handlers) {
+    handlers = new Set();
+    handlersByChannel.set(channel, handlers);
+    await sub.subscribe(channel, (message: string) => {
+      const current = handlersByChannel.get(channel);
+      if (!current) return;
+      for (const h of current) {
+        try {
+          h(message);
+        } catch {
+          // handler errors must not break dispatch for siblings
+        }
+      }
+    });
+  }
+  handlers.add(onMessage);
+
+  let released = false;
   return async () => {
-    try {
-      await sub.unsubscribe(channel);
-    } catch {
-      // ignore
-    }
-    try {
-      await sub.quit();
-    } catch {
-      // ignore
+    if (released) return;
+    released = true;
+    const current = handlersByChannel.get(channel);
+    if (!current) return;
+    current.delete(onMessage);
+    if (current.size === 0) {
+      handlersByChannel.delete(channel);
+      try {
+        await sub.unsubscribe(channel);
+      } catch {
+        // ignore
+      }
     }
   };
 }

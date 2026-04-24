@@ -17,7 +17,14 @@ export async function GET(req: NextRequest) {
     }
 
     const models = await getOpenRouterModels();
-    return NextResponse.json({ models });
+    return NextResponse.json(
+      { models },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=1800",
+        },
+      },
+    );
   } catch (err) {
     logger.error("Failed to fetch OpenRouter models", {
       error: err instanceof Error ? err.message : "Unknown error",
