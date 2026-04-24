@@ -7,6 +7,7 @@ import { NovelLiveSection } from "@/components/novel-live-section";
 import { SubscribeButton } from "@/components/subscribe-button";
 import { NovelGlossaryEditor } from "@/components/novel-glossary-editor";
 import { NovelTranslationInventory } from "@/components/novel-translation-inventory";
+import { NovelQualitySummary } from "@/components/quality/novel-quality-summary";
 import { getLocale, t } from "@/lib/i18n";
 
 function shortModelName(modelName: string): string {
@@ -153,6 +154,9 @@ export default async function NovelDetailPage({ params }: Props) {
           <IngestButton novelId={novelId} />
         </div>
       </section>
+
+      {/* Quality warnings summary (renders nothing if no warnings exist) */}
+      <NovelQualitySummary novelId={novelId} />
 
       {/* Per-novel glossary & translation guidelines */}
       <NovelGlossaryEditor novelId={novelId} />
