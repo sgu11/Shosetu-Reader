@@ -90,6 +90,10 @@ export const translationSettings = pgTable("translation_settings", {
     .references(() => users.id, { onDelete: "cascade" }),
   modelName: text("model_name").notNull().default("google/gemini-2.5-flash-lite"),
   globalPrompt: text("global_prompt").notNull().default(""),
+  favoriteModels: text("favorite_models")
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

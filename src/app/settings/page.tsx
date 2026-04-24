@@ -3,14 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "@/lib/i18n/client";
 import { ThemeToggle } from "@/components/theme-toggle";
-
-interface ModelOption {
-  id: string;
-  name: string;
-  contextLength: number | null;
-  promptPrice: string | null;
-  completionPrice: string | null;
-}
+import { ModelPicker } from "@/components/model-picker";
 
 export default function SettingsPage() {
   const { t } = useTranslation();
@@ -19,9 +12,7 @@ export default function SettingsPage() {
   const [modelName, setModelName] = useState("");
   const [globalPrompt, setGlobalPrompt] = useState("");
   const [defaultGlobalPrompt, setDefaultGlobalPrompt] = useState("");
-  const [models, setModels] = useState<ModelOption[]>([]);
-  const [modelsLoading, setModelsLoading] = useState(true);
-  const [modelSearch, setModelSearch] = useState("");
+  const [favoriteModels, setFavoriteModels] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -33,29 +24,10 @@ export default function SettingsPage() {
         setModelName(data.modelName ?? "");
         setGlobalPrompt(data.globalPrompt ?? "");
         setDefaultGlobalPrompt(data.defaultGlobalPrompt ?? "");
+        setFavoriteModels(Array.isArray(data.favoriteModels) ? data.favoriteModels : []);
       })
       .catch(() => {});
   }, []);
-
-  // Load models
-  useEffect(() => {
-    setModelsLoading(true);
-    fetch("/api/openrouter/models")
-      .then((res) => res.json())
-      .then((data) => {
-        setModels(data.models ?? []);
-      })
-      .catch(() => {})
-      .finally(() => setModelsLoading(false));
-  }, []);
-
-  const filteredModels = modelSearch.trim()
-    ? models.filter(
-        (m) =>
-          m.id.toLowerCase().includes(modelSearch.toLowerCase()) ||
-          m.name.toLowerCase().includes(modelSearch.toLowerCase()),
-      )
-    : models;
 
   const saveSettings = useCallback(async () => {
     setSaving(true);
@@ -64,7 +36,7 @@ export default function SettingsPage() {
       await fetch("/api/translation-settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ modelName, globalPrompt }),
+        body: JSON.stringify({ modelName, globalPrompt, favoriteModels }),
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -73,7 +45,23 @@ export default function SettingsPage() {
     } finally {
       setSaving(false);
     }
-  }, [modelName, globalPrompt]);
+  }, [modelName, globalPrompt, favoriteModels]);
+
+  const toggleFavorite = useCallback(
+    (m: string) => {
+      setFavoriteModels((prev) => {
+        const next = prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m];
+        // Persist favorites immediately, independent of Save
+        fetch("/api/translation-settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ favoriteModels: next }),
+        }).catch(() => {});
+        return next;
+      });
+    },
+    [],
+  );
 
   function applyDefaultPrompt() {
     setGlobalPrompt(defaultGlobalPrompt);
@@ -112,56 +100,14 @@ export default function SettingsPage() {
           <span className="code-label">{modelName || "—"}</span>
         </div>
 
-        {/* Model search & picker */}
-        <div className="space-y-2">
-          <input
-            type="text"
-            value={modelSearch}
-            onChange={(e) => setModelSearch(e.target.value)}
-            placeholder={t("settings.searchModels")}
-            className="w-full rounded-md border border-border bg-surface px-4 py-2.5 text-sm text-foreground placeholder:text-muted/50 focus:border-border-strong focus:outline-none"
-          />
-
-          {modelsLoading ? (
-            <p className="text-xs text-muted">{t("settings.loadingModels")}</p>
-          ) : (
-            <div className="max-h-64 overflow-y-auto rounded-md border border-border">
-              {filteredModels.slice(0, 50).map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => {
-                    setModelName(m.id);
-                    setModelSearch("");
-                  }}
-                  className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-sm transition-colors hover:bg-surface-strong ${
-                    modelName === m.id
-                      ? "bg-surface-strong text-accent"
-                      : "text-foreground"
-                  }`}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{m.name}</p>
-                    <p className="truncate text-xs text-muted">{m.id}</p>
-                  </div>
-                  {m.contextLength && (
-                    <span className="ml-3 shrink-0 text-xs text-muted">
-                      {Math.round(m.contextLength / 1000)}k ctx
-                    </span>
-                  )}
-                </button>
-              ))}
-              {filteredModels.length === 0 && (
-                <p className="px-4 py-3 text-xs text-muted">{t("settings.noModelsFound")}</p>
-              )}
-              {filteredModels.length > 50 && (
-                <p className="px-4 py-2 text-xs text-muted">
-                  {t("settings.refineSearch")}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
+        {/* Model picker */}
+        <ModelPicker
+          value={modelName}
+          onChange={setModelName}
+          favorites={favoriteModels}
+          onToggleFavorite={toggleFavorite}
+          placeholder={t("settings.searchModels")}
+        />
       </section>
 
       {/* Global translation prompt */}

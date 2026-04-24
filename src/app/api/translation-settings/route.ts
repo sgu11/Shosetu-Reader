@@ -17,6 +17,7 @@ export async function GET() {
       .select({
         modelName: translationSettings.modelName,
         globalPrompt: translationSettings.globalPrompt,
+        favoriteModels: translationSettings.favoriteModels,
       })
       .from(translationSettings)
       .where(eq(translationSettings.userId, userId))
@@ -26,6 +27,7 @@ export async function GET() {
       modelName: settings?.modelName ?? env.OPENROUTER_DEFAULT_MODEL,
       globalPrompt: settings?.globalPrompt ?? "",
       defaultGlobalPrompt: DEFAULT_GLOBAL_PROMPT,
+      favoriteModels: settings?.favoriteModels ?? [],
     });
   } catch (err) {
     logger.error("Failed to fetch translation settings", {
@@ -37,6 +39,7 @@ export async function GET() {
 
 const MAX_MODEL_NAME_LENGTH = 200;
 const MAX_GLOBAL_PROMPT_LENGTH = 5000;
+const MAX_FAVORITES = 20;
 
 export async function PUT(req: NextRequest) {
   try {
@@ -44,7 +47,7 @@ export async function PUT(req: NextRequest) {
     const db = getDb();
     const body = await req.json();
 
-    const { modelName, globalPrompt } = body;
+    const { modelName, globalPrompt, favoriteModels } = body;
 
     // Validate length limits
     if (typeof modelName === "string" && modelName.length > MAX_MODEL_NAME_LENGTH) {
@@ -66,7 +69,11 @@ export async function PUT(req: NextRequest) {
       .where(eq(translationSettings.userId, userId))
       .limit(1);
 
-    const update: Record<string, string> = {};
+    const update: {
+      modelName?: string;
+      globalPrompt?: string;
+      favoriteModels?: string[];
+    } = {};
     if (typeof modelName === "string" && modelName.trim()) {
       const normalizedModelName = modelName.trim();
       const knownModel = await isKnownOpenRouterModel(normalizedModelName);
@@ -81,6 +88,17 @@ export async function PUT(req: NextRequest) {
     if (typeof globalPrompt === "string") {
       update.globalPrompt = globalPrompt;
     }
+    if (Array.isArray(favoriteModels)) {
+      const cleaned = Array.from(
+        new Set(
+          favoriteModels
+            .filter((m): m is string => typeof m === "string")
+            .map((m) => m.trim())
+            .filter((m) => m.length > 0 && m.length <= MAX_MODEL_NAME_LENGTH),
+        ),
+      ).slice(0, MAX_FAVORITES);
+      update.favoriteModels = cleaned;
+    }
 
     if (existing) {
       await db
@@ -92,6 +110,7 @@ export async function PUT(req: NextRequest) {
         userId,
         modelName: update.modelName ?? env.OPENROUTER_DEFAULT_MODEL,
         globalPrompt: update.globalPrompt ?? "",
+        favoriteModels: update.favoriteModels ?? [],
       });
     }
 
