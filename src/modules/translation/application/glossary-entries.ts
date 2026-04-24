@@ -269,25 +269,18 @@ export async function importGlossaryEntries(
 /** Atomically increment glossary_version on the novel_glossaries row. Creates row if missing. */
 async function bumpGlossaryVersion(novelId: string) {
   const db = getDb();
-  const [existing] = await db
-    .select({ id: novelGlossaries.id })
-    .from(novelGlossaries)
-    .where(eq(novelGlossaries.novelId, novelId))
-    .limit(1);
-
-  if (existing) {
-    await db
-      .update(novelGlossaries)
-      .set({
-        glossaryVersion: sql`${novelGlossaries.glossaryVersion} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(eq(novelGlossaries.id, existing.id));
-  } else {
-    await db.insert(novelGlossaries).values({
+  await db
+    .insert(novelGlossaries)
+    .values({
       novelId,
       glossary: "",
       glossaryVersion: 2, // start at 2 since first change bumps from default 1
+    })
+    .onConflictDoUpdate({
+      target: novelGlossaries.novelId,
+      set: {
+        glossaryVersion: sql`${novelGlossaries.glossaryVersion} + 1`,
+        updatedAt: new Date(),
+      },
     });
-  }
 }
