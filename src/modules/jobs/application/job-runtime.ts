@@ -2,6 +2,7 @@ import { logger } from "@/lib/logger";
 import { recordJobRetry, recordRecoveredStaleJob } from "@/lib/ops-metrics";
 import { createRedisConnection, getRedisClient } from "@/lib/redis/client";
 import { getJobHandler } from "./job-handlers";
+import { recoverStaleTranslations } from "@/modules/translation/application/recover-stale-translations";
 import {
   claimQueuedJob,
   getJobRun,
@@ -86,6 +87,7 @@ export async function startJobWorker() {
       }
       if (Date.now() - lastRecoveryAt >= runtimeConfig.recoverEveryMs) {
         await recoverStaleRunningJobs();
+        await recoverStaleTranslations();
         lastRecoveryAt = Date.now();
       }
 
