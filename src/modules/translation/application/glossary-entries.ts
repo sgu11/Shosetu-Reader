@@ -136,7 +136,7 @@ export async function deleteGlossaryEntry(entryId: string, novelId: string) {
   return deleted != null;
 }
 
-const MAX_CONFIRMED_ENTRIES = 50;
+const MAX_CONFIRMED_ENTRIES = 200;
 
 /** Evict excess confirmed entries to stay under MAX_CONFIRMED_ENTRIES cap. */
 async function evictExcessConfirmedEntries(novelId: string) {

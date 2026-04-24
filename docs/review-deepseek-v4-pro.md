@@ -80,7 +80,7 @@ The codebase demonstrates solid architectural discipline with a 10-module modula
 | T22 | **HIGH** | 151-258 | `importGlossaryEntries` does N+1 queries: for 30 entries, it performs ~120 individual queries (SELECT per entry, UPDATE/INSERT, COUNT, potential eviction DELETE). Should batch with `WHERE termJa IN (...)` and use upserts. |
 | T23 | **MEDIUM** | 218-240 | Eviction logic is race-prone: COUNT → DELETE without a transaction or row-level lock. Concurrent imports could push count above `MAX_CONFIRMED_ENTRIES` or evict the same row twice. |
 | T24 | **MEDIUM** | 113-118 | `updateGlossaryEntry` bumps version on ANY confirmed entry edit, including trivial field changes (e.g., `notes`) — invalidates cached translation prompts unnecessarily |
-| T25 | **MEDIUM** | 139 | `MAX_CONFIRMED_ENTRIES = 50` hardcoded |
+| T25 | **RESOLVED** | 139 | `MAX_CONFIRMED_ENTRIES` raised to 200; render cap reads from `env.GLOSSARY_MAX_PROMPT_ENTRIES` (default 200, env-overridable) |
 | T26 | **LOW** | 262-263 | Confusing condition: `entries.some((e) => e.status === "confirmed")` is redundant if `confirmedChanged` is true |
 
 #### `application/translation-sessions.ts` (519 lines)
@@ -385,7 +385,7 @@ The [V3 review](./v3-review.md) identified 14 actionable issues. Status as of th
 | A2 | Failed translation left in "processing" | ❌ **Still open** — T30 above (`translation-sessions.ts:308-325`) |
 | A3 | No duplicate session prevention | ❌ **Still open** — R1 above (`bulk-translate-all/route.ts:58-86`) |
 | A4 | Session context only to first chunk | ❌ **Still open** — `request-translation.ts:325` |
-| B1 | No glossary size cap | ❌ **Still open** — `render-glossary-prompt.ts` |
+| B1 | No glossary size cap | ✅ **Fixed** — 200-entry cap on render (`GLOSSARY_MAX_PROMPT_ENTRIES`) + confirmed storage (`MAX_CONFIRMED_ENTRIES`) |
 | B2 | Extraction too aggressive | ❌ **Still open** — `extract-glossary.ts:64-70` |
 | B3 | Extraction re-suggests rejected terms | ❌ **Still open** |
 | B4 | Version bumped too eagerly | ❌ **Still open** — T24 above |
@@ -460,7 +460,7 @@ The [V3 review](./v3-review.md) identified 14 actionable issues. Status as of th
 33. **Remove `src/` and `scripts/` from production Docker image**
 34. **Add database integration tests** with a test container or in-memory SQLite
 35. **Add E2E tests** for critical flows: register novel, read episode, translate, subscribe
-36. **Add glossary size cap** — render max 200 confirmed entries (V3 review B1)
+36. ~~**Add glossary size cap**~~ ✅ Shipped — cap 200 confirmed entries on both render and storage (V3 review B1)
 37. **Add chunk fallback for single-paragraph text** (V3 review C1)
 
 ---

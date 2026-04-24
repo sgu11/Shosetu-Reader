@@ -484,7 +484,7 @@ consistency across episodes.
 | Context summary drifts or hallucinates | Downstream translations inherit errors | Summary is advisory, not authoritative; glossary entries are the source of truth for terms |
 | Chunking produces awkward splits | Translation quality at chunk boundaries | Overlap context + paragraph-boundary splitting; manual override for known problem episodes |
 | Prompt caching not effective for some models | No cost savings on those models | Caching is structural, not behavioral — no downside if provider ignores it |
-| Glossary grows too large for context window | System prompt exceeds model limits | Cap at 500 confirmed entries per novel; archive old entries; paginate rendering |
+| Glossary grows too large for context window | System prompt exceeds model limits | Cap at 200 confirmed entries per novel (`MAX_CONFIRMED_ENTRIES`) with lowest-importance eviction; render cap via `GLOSSARY_MAX_PROMPT_ENTRIES` env (default 200) |
 | Session processing order blocked by failed episode | Session stalls | Skip failed episodes after retry exhaustion; mark session partially complete |
 | Shared translations regress after a bad retranslation | All profiles see worse default output | Add canonical selection policy and avoid auto-promoting new translations blindly |
 

@@ -28,7 +28,7 @@ design-vs-spec gaps. These fall into a natural V3.6 hardening pass.
 
 | # | Issue | Severity | File |
 |---|-------|----------|------|
-| B1 | **No glossary size cap** — 500+ confirmed entries renders a massive markdown table injected into every translation request; can blow system prompt budget | Critical | `render-glossary-prompt.ts` |
+| B1 | ~~**No glossary size cap**~~ — **Fixed**: `render-glossary-prompt.ts` caps at `GLOSSARY_MAX_PROMPT_ENTRIES` (default 200); `glossary-entries.ts` evicts confirmed entries above `MAX_CONFIRMED_ENTRIES = 200` | Resolved | `render-glossary-prompt.ts`, `glossary-entries.ts:139` |
 | B2 | **Extraction too aggressive** — extracts all novel terms including trivial ones; no selectivity for "essential, important" terms; dedup only checks confirmed entries, not suggested/rejected | High | `extract-glossary.ts:64-70` |
 | B3 | **Extraction re-suggests rejected terms** — if a term was rejected, the extraction prompt doesn't know and will suggest it again next episode | High | `extract-glossary.ts` |
 | B4 | **Version bumped too eagerly** — any import call bumps glossary version even if zero confirmed entries changed, invalidating session fingerprints unnecessarily | Medium | `glossary-entries.ts:198` |
@@ -67,7 +67,7 @@ design-vs-spec gaps. These fall into a natural V3.6 hardening pass.
 | Structured glossary CRUD | **Done** | Import race condition (concurrent inserts) |
 | Living glossary updates | **Done** | Over-extracts; re-suggests rejected terms |
 | Glossary compliance quality check | **Not done** | Spec section 6 lists it; not implemented |
-| Glossary size cap (500 entries) | **Not done** | Spec risk table mentions it; not enforced |
+| Glossary size cap | **Done** | 200-entry cap on both render (`GLOSSARY_MAX_PROMPT_ENTRIES`) and storage (`MAX_CONFIRMED_ENTRIES`) with importance-based eviction |
 | Session processing in strict order | **Works** | Only because single worker; not enforced |
 | Session failure policy (skip + warn) | **Partial** | Skips but orphans translation row in "processing" |
 | Chunking fallback to single-newline | **Not done** | Spec says "fall back to single newline"; only splits on `\n\n` |
@@ -103,11 +103,11 @@ Ordered by impact. Each item is a focused, testable slice.
 - Include `contextSummary` in all chunk translate calls, not just chunk 0
 - The system message is cached anyway; the context message is small
 
-**5. Glossary size cap (B1)**
-- Cap rendered glossary at 200 confirmed entries (not 500 — prompt budget)
-- Order by category priority, then by creation date (older = more essential)
-- Add truncation note: `"(+N entries omitted)"`
-- Log when truncation happens
+**5. Glossary size cap (B1)** ✅ Shipped
+- Rendered glossary capped at `GLOSSARY_MAX_PROMPT_ENTRIES` (default 200, env override)
+- Stored confirmed entries capped at 200 with lowest-importance + oldest eviction
+- Sorted by importance DESC then termJa ASC before truncation
+- Truncation note `"(+N entries omitted)"` rendered when exceeded
 
 **6. Chunk fallback for no-paragraph text (C1)**
 - When no `\n\n` boundary exists, fall back to splitting on single `\n`
@@ -218,7 +218,7 @@ Total estimate: ~8h of focused work, naturally split across 5 deployable slices.
 
 ## Decision Points for User
 
-1. **Glossary size cap**: 200 entries recommended. Want a different limit?
+1. ~~**Glossary size cap**: 200 entries recommended.~~ **Decided**: 200 (env-overridable via `GLOSSARY_MAX_PROMPT_ENTRIES`).
 2. **Extraction selectivity**: Cap at 10 terms/episode? Or 5?
 3. **Session ordering**: Add explicit guard now, or defer until multi-worker?
 4. **Mobile glossary layout**: Card view or truncated table?

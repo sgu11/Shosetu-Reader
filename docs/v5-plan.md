@@ -195,28 +195,24 @@ scroll or re-type every time. No way to pin preferred models.
 **Scope:** Schema migration, CRUD endpoints, shared `<ModelPicker>` component
 refactor, settings UI, seed logic based on translation history.
 
-### V5.10 — Increase Glossary Prompt Limit to 200
+### V5.10 — Increase Glossary Prompt Limit to 200 ✅ Shipped
 
-**Problem:** `render-glossary-prompt.ts` caps the glossary injected into
-translation prompts at `MAX_PROMPT_ENTRIES = 50`. Mid-to-long novels routinely
-accumulate 100+ confirmed entries; anything beyond 50 is silently dropped
-(shown as `(+N entries omitted)`). Cheap, high-context models (Gemini 2.5,
-DeepSeek V4) can handle far more without hitting context limits, so the cap
-is leaving translation quality on the table.
+**Problem:** `render-glossary-prompt.ts` previously capped the glossary
+injected into translation prompts at `MAX_PROMPT_ENTRIES = 50`, and
+`glossary-entries.ts` capped confirmed entries at `MAX_CONFIRMED_ENTRIES = 50`.
+Mid-to-long novels routinely accumulate 100+ confirmed entries; anything
+beyond 50 was silently dropped or evicted. Cheap, high-context models
+(Gemini 2.5, DeepSeek V4) handle far more without hitting context limits,
+so the cap was leaving translation quality on the table.
 
-**Plan:**
-- Raise `MAX_PROMPT_ENTRIES` from 50 → 200 in `render-glossary-prompt.ts:1`
-- Audit prompt size impact: 200 entries × avg ~60 chars/row ≈ 12K extra chars
-  (~3K tokens). Verify this stays within per-model context budget across all
-  configured workloads (translation, summary, extraction, title)
-- If context is tight for lower-tier models, make the cap configurable per
-  workload via `OPENROUTER_*_GLOSSARY_CAP` env vars (fall back to 200)
-- Update `quality-validation.ts` compliance check to reflect new cap (if it
-  assumes all confirmed entries are injected)
-- Bump any test fixtures that assume the 50-entry ceiling
+**Implemented:**
+- `render-glossary-prompt.ts:3` reads cap from `env.GLOSSARY_MAX_PROMPT_ENTRIES`
+  (default 200, env-overridable via `GLOSSARY_MAX_PROMPT_ENTRIES`).
+- `glossary-entries.ts:139` raised `MAX_CONFIRMED_ENTRIES` from 50 → 200.
+- `src/lib/env.ts:15-20` defines the new env var with zod coerce.
+- Truncation note (`(+N entries omitted)`) still rendered when exceeded.
 
-**Scope:** One-line constant bump + context-budget verification + per-workload
-override if needed. Smallest V5 item, highest translation-quality-per-loc ratio.
+**Scope:** Constant bump + env override. Shipped in V5.10.
 
 ---
 
@@ -294,4 +290,4 @@ phases. V5.10 should ship first (trivial), V5.9 alongside or after V5.6.
 - Read episodes are available offline via service worker
 - Translated novels can be exported as EPUB
 - Favorite models appear pinned at top of every model picker
-- Glossary prompt cap raised to 200 entries with context-budget guardrails
+- Glossary prompt cap raised to 200 entries with context-budget guardrails ✅

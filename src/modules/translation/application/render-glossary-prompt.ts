@@ -19,7 +19,7 @@ function escapePipe(s: string): string {
 /**
  * Render confirmed glossary entries as a compact markdown table grouped by category,
  * followed by the style guide text. Ordering is deterministic for cacheability.
- * Caps at 50 entries max, sorted by importance DESC then termJa ASC.
+ * Caps at GLOSSARY_MAX_PROMPT_ENTRIES (default 200), sorted by importance DESC then termJa ASC.
  */
 export function renderGlossaryPrompt(
   entries: GlossaryPromptEntry[],

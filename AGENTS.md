@@ -62,7 +62,7 @@ API routes live in `src/app/api/` (Next.js App Router) and delegate to module ap
 ### V3 Translation Architecture (planned — see `docs/v3-architecture.md`)
 
 - **Structured glossary**: `novel_glossary_entries` table with per-term CRUD (category, importance 1-5, reading). "Generate" produces both structured entries and a prose-only style guide in one LLM call. Style guide (tone/register only) remains as free text in `novel_glossaries.glossary`.
-- **Living glossary updates**: `glossary.extract` background job auto-extracts up to 5 new terms after each episode translation. Entries are auto-confirmed with LLM-assigned importance (1-5). 50-entry confirmed cap with lowest-importance eviction.
+- **Living glossary updates**: `glossary.extract` background job auto-extracts up to 5 new terms after each episode translation. Entries are auto-confirmed with LLM-assigned importance (1-5). 200-entry confirmed cap (`MAX_CONFIRMED_ENTRIES`) with lowest-importance eviction. Render cap configurable via `GLOSSARY_MAX_PROMPT_ENTRIES` env (default 200).
 - **Translation sessions**: `translation_sessions` table groups sequential bulk translations. Each episode carries a rolling context summary (~2000 chars) from prior episodes to maintain consistency.
 - **Prompt caching layout**: System message (stable: base rules + glossary + global prompt) → context message (per-session: rolling summary) → source message (per-episode). Maximizes prefix cache hits on Anthropic/Google models.
 - **Episode chunking**: Long episodes (>12K chars) split at paragraph boundaries with overlap context. Adaptive `max_tokens` based on source length.
