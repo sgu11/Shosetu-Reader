@@ -3,6 +3,8 @@ import { Source_Code_Pro, Noto_Serif_JP } from "next/font/google";
 import { cookies } from "next/headers";
 import { Nav } from "@/components/nav";
 import { LocaleProvider } from "@/components/locale-provider";
+import { RegisterSW } from "@/components/register-sw";
+import { OfflineBadge } from "@/components/offline-badge";
 import { getLocale } from "@/lib/i18n";
 import "./globals.css";
 
@@ -21,6 +23,8 @@ const readerFont = Noto_Serif_JP({
 export const metadata: Metadata = {
   title: "Shosetu Reader",
   description: "Calm web reader for Syosetu novels with resume and translation flows.",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#0a0a0a",
 };
 
 export default async function RootLayout({
@@ -65,6 +69,8 @@ export default async function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <LocaleProvider locale={locale}>
+          <RegisterSW />
+          <OfflineBadge />
           <Nav />
           {children}
         </LocaleProvider>
