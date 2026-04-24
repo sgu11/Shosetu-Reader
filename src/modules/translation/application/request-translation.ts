@@ -12,6 +12,7 @@ import { splitIntoChunks, reassembleChunks } from "./chunk-episode";
 import { computePromptFingerprint } from "./prompt-fingerprint";
 import { validateTranslation } from "./quality-validation";
 import { renderGlossaryPrompt } from "./render-glossary-prompt";
+import { publishEpisodeEvent } from "@/modules/events/application/publish-event";
 
 const PROMPT_VERSION = "v2";
 
@@ -452,6 +453,14 @@ export async function processQueuedTranslation(
       })
       .where(eq(translations.id, payload.translationId));
 
+    await publishEpisodeEvent(payload.episodeId, {
+      type: "translation.completed",
+      episodeId: payload.episodeId,
+      translationId: payload.translationId,
+      modelName: provider.modelName,
+      at: new Date().toISOString(),
+    });
+
     // After successful translation, enqueue glossary extraction
     try {
       const [ep] = await db
@@ -493,6 +502,13 @@ export async function processQueuedTranslation(
         updatedAt: new Date(),
       })
       .where(eq(translations.id, payload.translationId));
+
+    await publishEpisodeEvent(payload.episodeId, {
+      type: "translation.failed",
+      episodeId: payload.episodeId,
+      errorMessage: message.slice(0, 500),
+      at: new Date().toISOString(),
+    });
 
     throw err;
   }

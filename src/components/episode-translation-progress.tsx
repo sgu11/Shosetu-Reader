@@ -21,33 +21,80 @@ export function EpisodeTranslationProgress({ episodeId }: Props) {
   useEffect(() => {
     let cancelled = false;
 
+    function applySnapshot(data: { pendingTranslation?: { progressEstimate?: ProgressEstimate }; status?: string }) {
+      if (data.pendingTranslation?.progressEstimate) {
+        setProgress(data.pendingTranslation.progressEstimate);
+      } else if (data.status === "available" || data.status === "failed") {
+        setDone(true);
+      } else {
+        setProgress(null);
+      }
+    }
+
     async function poll() {
       try {
         const res = await fetch(`/api/translations/episodes/${episodeId}/status`);
         if (!res.ok || cancelled) return;
         const data = await res.json();
-
-        if (data.pendingTranslation?.progressEstimate) {
-          setProgress(data.pendingTranslation.progressEstimate);
-        } else if (data.status === "available" || data.status === "failed") {
-          setDone(true);
-        } else {
-          setProgress(null);
-        }
+        applySnapshot(data);
       } catch {
         // Ignore polling errors
       }
     }
 
-    void poll();
-    const interval = window.setInterval(() => {
-      if (document.visibilityState !== "visible" || cancelled || done) return;
+    // Try SSE first; fall back to polling on repeated error or unsupported env.
+    let eventSource: EventSource | null = null;
+    let pollInterval: number | null = null;
+    let errorCount = 0;
+    let pollingActive = false;
+
+    function startPolling() {
+      if (pollingActive || cancelled) return;
+      pollingActive = true;
       void poll();
-    }, 4000);
+      pollInterval = window.setInterval(() => {
+        if (document.visibilityState !== "visible" || cancelled || done) return;
+        void poll();
+      }, 4000);
+    }
+
+    if (typeof EventSource !== "undefined") {
+      try {
+        eventSource = new EventSource(
+          `/api/translations/episodes/${episodeId}/events`,
+        );
+        eventSource.addEventListener("snapshot", (ev) => {
+          try {
+            applySnapshot(JSON.parse((ev as MessageEvent).data));
+          } catch {
+            // ignore
+          }
+        });
+        eventSource.addEventListener("translation.completed", () => {
+          setDone(true);
+        });
+        eventSource.addEventListener("translation.failed", () => {
+          setDone(true);
+        });
+        eventSource.onerror = () => {
+          errorCount += 1;
+          if (errorCount >= 2) {
+            eventSource?.close();
+            eventSource = null;
+            startPolling();
+          }
+        };
+      } catch {
+        startPolling();
+      }
+    } else {
+      startPolling();
+    }
 
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
+      if (eventSource) eventSource.close();
+      if (pollInterval !== null) window.clearInterval(pollInterval);
     };
   }, [episodeId, done]);
 
