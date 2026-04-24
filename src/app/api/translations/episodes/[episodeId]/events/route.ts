@@ -6,6 +6,7 @@ import {
   subscribeToChannel,
 } from "@/lib/redis/pubsub";
 import { getTranslationStatus } from "@/modules/translation/application/get-translation-status";
+import { resolveUserContext } from "@/modules/identity/application/resolve-user-context";
 
 const HEARTBEAT_INTERVAL_MS = 15_000;
 
@@ -20,6 +21,12 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   if (!isValidUuid(episodeId)) {
     return new Response("Invalid episode ID", { status: 400 });
   }
+
+  const userCtx = await resolveUserContext();
+  if (!userCtx.isAuthenticated && userCtx.authStrategy !== "default-user") {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   if (!isRedisConfigured()) {
     return new Response("SSE requires Redis", { status: 503 });
   }
