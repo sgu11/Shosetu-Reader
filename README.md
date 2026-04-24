@@ -12,6 +12,10 @@ translation-first reading experience.
 - V5 is the active planning track for new capabilities such as quality warning
   surfaces, selective re-ingest, reading stats, SSE, offline support, and EPUB
   export.
+- 2026-04-24 latency/caching pass: external fetch timeouts, composite index on
+  translations, stale-while-revalidate model cache, shared pub/sub socket with
+  per-channel refcount, throttled bulk-translate progress writes, and HTTP
+  `Cache-Control` on shared-catalog GETs. See the Performance section below.
 
 ## Features
 
@@ -31,6 +35,34 @@ translation-first reading experience.
 - **Cost budget controls** that can auto-pause translation sessions when spend crosses a configured threshold
 - **Operational APIs** for job health, queue metrics, translation quality, and model throughput
 - **Dark/light/system theme** with a Supabase-inspired design system
+
+## Performance
+
+Latency and caching guarantees the app relies on:
+
+- **Fetch timeouts** — every outbound call (OpenRouter chat/models, Syosetu
+  API and HTML scraper) uses `AbortSignal.timeout` so upstream stalls cannot
+  wedge a worker. Tuned per call: 15–30 s for metadata, 120–180 s for
+  translation.
+- **OpenRouter models cache** — Redis-backed, 1 h TTL, served with a
+  stale-while-revalidate pattern so stale hits return immediately while a
+  single in-flight refresh repopulates the cache. Pre-warmed into process
+  memory on boot via `src/instrumentation.ts`.
+- **Shared pub/sub socket** — SSE subscribers share one Redis subscriber
+  connection with a per-channel handler refcount, avoiding the one-socket-
+  per-tab leak when browsers force-close connections.
+- **Bulk-translate progress throttling** — `translation.bulk-translate-all`
+  writes progress at ~1 % intervals (with a 500 ms floor) instead of per
+  episode, cutting DB writes on large runs from O(N) to O(100).
+- **Title translation parallelism** — `translateTexts` runs batches with a
+  bounded concurrency of 3 rather than serially.
+- **HTTP caching on shared GETs** — `/api/openrouter/models` and
+  `/api/ranking` return `Cache-Control: public, s-maxage=300,
+  stale-while-revalidate=1800` so CDNs and browsers can offload repeat hits.
+- **Composite index** on `translations(target_language, status, episode_id)`
+  covers the hot status-overview joins used by the library and per-novel
+  pages; the redundant cost-aggregate query against the same rows was
+  removed in favor of in-app aggregation over the per-model rollup.
 
 ## Stack
 
