@@ -3,6 +3,7 @@ export const jobKinds = [
   "catalog.metadata-refresh",
   "glossary.generate",
   "glossary.extract",
+  "glossary.refresh",
   "translation.bulk-translate-all",
   "translation.episode",
   "translation.session-advance",

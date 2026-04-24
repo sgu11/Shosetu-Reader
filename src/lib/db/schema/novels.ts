@@ -27,6 +27,9 @@ export const novels = pgTable("novels", {
   rankingSnapshotJson: jsonb("ranking_snapshot_json"),
   sourceMetadataJson: jsonb("source_metadata_json"),
   lastSourceSyncAt: timestamp("last_source_sync_at", { withTimezone: true }),
+  glossaryLastRefreshedAt: timestamp("glossary_last_refreshed_at", {
+    withTimezone: true,
+  }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

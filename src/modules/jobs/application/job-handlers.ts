@@ -9,6 +9,7 @@ import {
 import { refreshSubscribedNovelMetadata } from "@/modules/catalog/application/refresh-metadata";
 import { extractGlossaryTerms, type ExtractGlossaryPayload } from "@/modules/translation/application/extract-glossary";
 import { generateGlossary } from "@/modules/translation/application/generate-glossary";
+import { refreshGlossary, type GlossaryRefreshPayload } from "@/modules/translation/application/refresh-glossary";
 import { requestTranslation, processQueuedTranslation, type TranslationJobPayload } from "@/modules/translation/application/request-translation";
 import { advanceSession, generateSessionSummary, type SessionAdvancePayload, type SessionSummaryPayload } from "@/modules/translation/application/translation-sessions";
 import type { JobExecutionContext } from "./job-queue";
@@ -55,6 +56,7 @@ const jobHandlers: {
   "catalog.metadata-refresh": handleMetadataRefresh as JobHandler<unknown>,
   "glossary.generate": handleGlossaryGenerate as JobHandler<unknown>,
   "glossary.extract": handleGlossaryExtract as JobHandler<unknown>,
+  "glossary.refresh": handleGlossaryRefresh as JobHandler<unknown>,
   "translation.bulk-translate-all": handleBulkTranslateAll as JobHandler<unknown>,
   "translation.episode": handleEpisodeTranslation as JobHandler<unknown>,
   "translation.session-advance": handleSessionAdvance as JobHandler<unknown>,
@@ -202,6 +204,20 @@ async function handleGlossaryExtract(
   });
 
   const result = await extractGlossaryTerms(payload);
+
+  return {
+    stage: "completed",
+    ...result,
+  };
+}
+
+async function handleGlossaryRefresh(
+  payload: GlossaryRefreshPayload,
+  context: JobExecutionContext<GlossaryRefreshPayload>,
+) {
+  const result = await refreshGlossary(payload, async (p) => {
+    await context.updateProgress({ ...p });
+  });
 
   return {
     stage: "completed",
