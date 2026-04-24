@@ -151,8 +151,11 @@ function getClientIp(req: NextRequest): string {
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) {
     const parts = forwarded.split(",");
-    return parts[parts.length - 1].trim();
+    const first = parts[0]?.trim();
+    if (first) return first;
   }
 
   return "unknown";
 }
+
+export const __getClientIpForTest = getClientIp;

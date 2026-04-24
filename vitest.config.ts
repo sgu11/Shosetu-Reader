@@ -6,6 +6,9 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    env: {
+      DATABASE_URL: "postgres://localhost:5432/shosetu_reader",
+    },
   },
   resolve: {
     alias: {
