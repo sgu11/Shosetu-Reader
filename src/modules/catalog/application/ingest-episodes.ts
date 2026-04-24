@@ -1,4 +1,4 @@
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { novels, episodes } from "@/lib/db/schema";
 import {
@@ -24,35 +24,38 @@ export async function discoverEpisodes(novelId: string): Promise<number> {
   if (!novel) throw new Error(`Novel not found: ${novelId}`);
 
   const tocEntries = await fetchEpisodeList(novel.sourceNcode);
-  let newCount = 0;
+  if (tocEntries.length === 0) return 0;
 
-  for (const entry of tocEntries) {
-    // Check if episode already exists
-    const existing = await db
-      .select({ id: episodes.id })
-      .from(episodes)
-      .where(
-        and(
-          eq(episodes.novelId, novelId),
-          eq(episodes.sourceEpisodeId, String(entry.episodeNumber)),
-        ),
-      )
-      .limit(1);
+  const sourceIds = tocEntries.map((e) => String(e.episodeNumber));
+  const existingRows = await db
+    .select({ sourceEpisodeId: episodes.sourceEpisodeId })
+    .from(episodes)
+    .where(
+      and(
+        eq(episodes.novelId, novelId),
+        inArray(episodes.sourceEpisodeId, sourceIds),
+      ),
+    );
+  const existingSet = new Set(existingRows.map((r) => r.sourceEpisodeId));
 
-    if (existing.length > 0) continue;
-
-    await db.insert(episodes).values({
+  const toInsert = tocEntries
+    .filter((entry) => !existingSet.has(String(entry.episodeNumber)))
+    .map((entry) => ({
       novelId,
       sourceEpisodeId: String(entry.episodeNumber),
       episodeNumber: entry.episodeNumber,
       titleJa: entry.title,
       sourceUrl: entry.sourceUrl,
-      fetchStatus: "pending",
+      fetchStatus: "pending" as const,
+    }));
+
+  if (toInsert.length > 0) {
+    await db.insert(episodes).values(toInsert).onConflictDoNothing({
+      target: [episodes.novelId, episodes.sourceEpisodeId],
     });
-    newCount++;
   }
 
-  return newCount;
+  return toInsert.length;
 }
 
 /**
