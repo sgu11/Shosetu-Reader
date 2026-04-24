@@ -37,6 +37,7 @@ describe("readerPayloadSchema", () => {
           estimatedCostUsd: 0.0008,
         },
       ],
+      compareTranslation: null,
       pendingTranslation: {
         status: "processing",
         modelName: "openai/gpt-4.1-mini",

@@ -145,7 +145,24 @@ export class OpenRouterProvider implements TranslationProvider {
         );
       }
 
-      const data = await res.json();
+      const raw = await res.text();
+      let data: {
+        choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+        usage?: {
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          cached_tokens?: number;
+          cache_read_input_tokens?: number;
+          prompt_tokens_details?: { cached_tokens?: number };
+        };
+      };
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        throw new Error(
+          `OpenRouter returned non-JSON ${res.status} body: ${raw.slice(0, 200)}`,
+        );
+      }
       const content = data.choices?.[0]?.message?.content;
       const finishReason = data.choices?.[0]?.finish_reason as string | undefined;
 
