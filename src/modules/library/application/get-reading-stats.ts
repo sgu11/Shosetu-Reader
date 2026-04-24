@@ -147,22 +147,32 @@ export async function getReadingStats(
     lastReadAt: new Date(row.lastReadAt).toISOString(),
   }));
 
+  const translationsSub = db
+    .select({
+      episodeId: translations.episodeId,
+      modelName: translations.modelName,
+      estimatedCostUsd: translations.estimatedCostUsd,
+    })
+    .from(translations)
+    .where(
+      and(
+        eq(translations.status, "available"),
+        eq(translations.isCanonical, true),
+      ),
+    )
+    .as("canonical_translations");
+
   const modelRows = await db
     .select({
-      modelName: translations.modelName,
+      modelName: translationsSub.modelName,
       episodes: sql<number>`count(distinct ${readingEvents.episodeId})::int`,
-      cost: sql<number>`coalesce(sum(distinct ${translations.estimatedCostUsd}), 0)::float`,
+      cost: sql<number>`coalesce(sum(${translationsSub.estimatedCostUsd}), 0)::float`,
     })
     .from(readingEvents)
     .innerJoin(episodes, eq(readingEvents.episodeId, episodes.id))
-    .innerJoin(translations, eq(translations.episodeId, episodes.id))
-    .where(
-      and(
-        ...eventFilters,
-        eq(translations.status, "available"),
-      ),
-    )
-    .groupBy(translations.modelName)
+    .innerJoin(translationsSub, eq(translationsSub.episodeId, episodes.id))
+    .where(and(...eventFilters))
+    .groupBy(translationsSub.modelName)
     .orderBy(desc(sql`count(distinct ${readingEvents.episodeId})`))
     .limit(10);
 
