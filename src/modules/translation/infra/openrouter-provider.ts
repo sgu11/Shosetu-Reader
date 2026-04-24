@@ -30,7 +30,7 @@ export class OpenRouterProvider implements TranslationProvider {
     glossary?: string,
   ) {
     this.apiKey = apiKey;
-    this.modelName = modelName ?? "google/gemini-2.5-flash-lite";
+    this.modelName = modelName ?? "deepseek/deepseek-v4-flash";
     this.globalPrompt = globalPrompt ?? "";
     this.glossary = glossary ?? "";
   }

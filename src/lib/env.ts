@@ -8,7 +8,7 @@ const serverEnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   REDIS_URL: z.string().optional().default(""),
   OPENROUTER_API_KEY: z.string().optional(),
-  OPENROUTER_DEFAULT_MODEL: z.string().optional().default("google/gemini-2.5-flash-lite"),
+  OPENROUTER_DEFAULT_MODEL: z.string().optional().default("deepseek/deepseek-v4-flash"),
   OPENROUTER_SUMMARY_MODEL: z.string().optional(),
   OPENROUTER_EXTRACTION_MODEL: z.string().optional(),
   OPENROUTER_TITLE_MODEL: z.string().optional(),
