@@ -1,4 +1,4 @@
-import { eq, and, asc, sql } from "drizzle-orm";
+import { eq, and, asc, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { novelGlossaryEntries, novelGlossaries } from "@/lib/db/schema";
 
@@ -138,32 +138,81 @@ export async function deleteGlossaryEntry(entryId: string, novelId: string) {
 
 const MAX_CONFIRMED_ENTRIES = 50;
 
+/** Evict excess confirmed entries to stay under MAX_CONFIRMED_ENTRIES cap. */
+async function evictExcessConfirmedEntries(novelId: string) {
+  const db = getDb();
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(novelGlossaryEntries)
+    .where(
+      and(
+        eq(novelGlossaryEntries.novelId, novelId),
+        eq(novelGlossaryEntries.status, "confirmed"),
+      ),
+    );
+  const count = row?.count ?? 0;
+  if (count <= MAX_CONFIRMED_ENTRIES) return;
+
+  const excess = count - MAX_CONFIRMED_ENTRIES;
+  const victims = await db
+    .select({ id: novelGlossaryEntries.id })
+    .from(novelGlossaryEntries)
+    .where(
+      and(
+        eq(novelGlossaryEntries.novelId, novelId),
+        eq(novelGlossaryEntries.status, "confirmed"),
+      ),
+    )
+    .orderBy(
+      asc(novelGlossaryEntries.importance),
+      asc(novelGlossaryEntries.createdAt),
+    )
+    .limit(excess);
+  if (victims.length === 0) return;
+  await db
+    .delete(novelGlossaryEntries)
+    .where(inArray(novelGlossaryEntries.id, victims.map((v) => v.id)));
+}
+
 /** Bulk import entries (for extraction and manual import). Skips existing confirmed entries. */
 export async function importGlossaryEntries(
   novelId: string,
   entries: GlossaryEntryInput[],
 ): Promise<{ imported: number; skipped: number }> {
   const db = getDb();
+  if (entries.length === 0) return { imported: 0, skipped: 0 };
+
+  // Batch lookup existing entries
+  const termJas = Array.from(new Set(entries.map((e) => e.termJa)));
+  const existingRows = await db
+    .select({
+      id: novelGlossaryEntries.id,
+      termJa: novelGlossaryEntries.termJa,
+      category: novelGlossaryEntries.category,
+      status: novelGlossaryEntries.status,
+      importance: novelGlossaryEntries.importance,
+    })
+    .from(novelGlossaryEntries)
+    .where(
+      and(
+        eq(novelGlossaryEntries.novelId, novelId),
+        inArray(novelGlossaryEntries.termJa, termJas),
+      ),
+    );
+
+  const existingByKey = new Map<string, (typeof existingRows)[number]>();
+  for (const row of existingRows) {
+    existingByKey.set(`${row.termJa}::${row.category}`, row);
+  }
+
   let imported = 0;
   let skipped = 0;
   let confirmedChanged = false;
+  const toInsert: Array<typeof novelGlossaryEntries.$inferInsert> = [];
 
   for (const input of entries) {
-    const [existing] = await db
-      .select({
-        id: novelGlossaryEntries.id,
-        status: novelGlossaryEntries.status,
-        importance: novelGlossaryEntries.importance,
-      })
-      .from(novelGlossaryEntries)
-      .where(
-        and(
-          eq(novelGlossaryEntries.novelId, novelId),
-          eq(novelGlossaryEntries.termJa, input.termJa),
-          eq(novelGlossaryEntries.category, input.category),
-        ),
-      )
-      .limit(1);
+    const key = `${input.termJa}::${input.category}`;
+    const existing = existingByKey.get(key);
 
     if (existing) {
       // Don't overwrite confirmed entries with suggested ones
@@ -202,46 +251,9 @@ export async function importGlossaryEntries(
       imported++;
     } else {
       const effectiveStatus = input.status ?? "suggested";
+      if (effectiveStatus === "confirmed") confirmedChanged = true;
 
-      // Enforce 50-entry cap for confirmed entries
-      if (effectiveStatus === "confirmed") {
-        const confirmedCount = await db
-          .select({ count: sql<number>`count(*)::int` })
-          .from(novelGlossaryEntries)
-          .where(
-            and(
-              eq(novelGlossaryEntries.novelId, novelId),
-              eq(novelGlossaryEntries.status, "confirmed"),
-            ),
-          );
-
-        if ((confirmedCount[0]?.count ?? 0) >= MAX_CONFIRMED_ENTRIES) {
-          // Find the lowest-importance confirmed entry (break ties by oldest updatedAt)
-          const [lowest] = await db
-            .select({ id: novelGlossaryEntries.id })
-            .from(novelGlossaryEntries)
-            .where(
-              and(
-                eq(novelGlossaryEntries.novelId, novelId),
-                eq(novelGlossaryEntries.status, "confirmed"),
-              ),
-            )
-            .orderBy(
-              asc(novelGlossaryEntries.importance),
-              asc(novelGlossaryEntries.updatedAt),
-            )
-            .limit(1);
-
-          if (lowest) {
-            await db
-              .delete(novelGlossaryEntries)
-              .where(eq(novelGlossaryEntries.id, lowest.id));
-          }
-        }
-        confirmedChanged = true;
-      }
-
-      await db.insert(novelGlossaryEntries).values({
+      toInsert.push({
         novelId,
         termJa: input.termJa,
         termKo: input.termKo,
@@ -258,8 +270,14 @@ export async function importGlossaryEntries(
     }
   }
 
-  // Bump version if any confirmed entries were changed
-  if (confirmedChanged && (imported > 0 || entries.some((e) => e.status === "confirmed"))) {
+  // Batch insert new entries
+  if (toInsert.length > 0) {
+    await db.insert(novelGlossaryEntries).values(toInsert).onConflictDoNothing();
+  }
+
+  // Handle cap enforcement and version bump for confirmed changes
+  if (confirmedChanged) {
+    await evictExcessConfirmedEntries(novelId);
     await bumpGlossaryVersion(novelId);
   }
 
