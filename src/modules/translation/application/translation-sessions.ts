@@ -13,6 +13,7 @@ import { logger } from "@/lib/logger";
 import { recordOpenRouterError, recordOpenRouterUsage } from "@/lib/ops-metrics";
 import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
 import { getJobQueue } from "@/modules/jobs/application/job-queue";
+import { SYSTEM_OWNER_USER_ID } from "../domain/constants";
 import { computePromptFingerprint } from "./prompt-fingerprint";
 import { estimateCost } from "./cost-estimation";
 import { renderGlossaryPrompt } from "./render-glossary-prompt";
@@ -278,11 +279,12 @@ export async function advanceSession(
 
   // Process translation directly (inline, not via separate job)
   try {
+    const ownerUserId = session.creatorUserId ?? SYSTEM_OWNER_USER_ID;
     await processQueuedTranslation({
       translationId,
       episodeId,
       novelId: payload.novelId,
-      ownerUserId: "",
+      ownerUserId,
       sourceText: episode.normalizedTextJa,
       provider: "openrouter",
       modelName: session.modelName,

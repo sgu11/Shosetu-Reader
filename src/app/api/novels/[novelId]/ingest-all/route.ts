@@ -7,6 +7,7 @@ import type { IngestAllJobPayload } from "@/modules/jobs/application/job-handler
 import { getActiveJobByKindAndEntity } from "@/modules/jobs/application/job-runs";
 import { rateLimit } from "@/lib/rate-limit";
 import { isValidUuid } from "@/lib/validation";
+import { SYSTEM_OWNER_USER_ID } from "@/modules/translation/domain/constants";
 
 // 1 ingest-all request per minute per IP
 const RATE_LIMIT = { limit: 1, windowSeconds: 60 };
@@ -67,7 +68,7 @@ export async function POST(
     novelId,
     limit: 9999,
     discovered,
-    ownerUserId: "site",
+    ownerUserId: SYSTEM_OWNER_USER_ID,
   };
 
   const job = await jobQueue.enqueue(

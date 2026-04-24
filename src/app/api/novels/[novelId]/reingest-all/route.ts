@@ -9,6 +9,7 @@ import type { IngestAllJobPayload } from "@/modules/jobs/application/job-handler
 import { getActiveJobByKindAndEntity } from "@/modules/jobs/application/job-runs";
 import { rateLimit } from "@/lib/rate-limit";
 import { isValidUuid } from "@/lib/validation";
+import { SYSTEM_OWNER_USER_ID } from "@/modules/translation/domain/constants";
 
 // 1 reingest request per 2 minutes per IP (heavy operation)
 const RATE_LIMIT = { limit: 1, windowSeconds: 120 };
@@ -85,7 +86,7 @@ export async function POST(
     novelId,
     limit: 9999,
     discovered: 0,
-    ownerUserId: "site",
+    ownerUserId: SYSTEM_OWNER_USER_ID,
     reconcile: true,
   };
 
