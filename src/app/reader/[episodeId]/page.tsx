@@ -52,6 +52,10 @@ export default async function ReaderPage({ params, searchParams }: Props) {
       }
     : null;
 
+  const isComparing = !!payload.compareTranslation;
+  const compareTarget =
+    availableTranslations.find((a) => a.modelName !== translation?.modelName)?.modelName ?? null;
+
   return (
     <div className="flex min-h-screen flex-col">
       <ProgressTracker
@@ -98,6 +102,24 @@ export default async function ReaderPage({ params, searchParams }: Props) {
               pendingTranslation={pendingTranslation}
             />
             <ReaderSettings />
+            {(isComparing || compareTarget) && (
+              <Link
+                href={
+                  isComparing
+                    ? `/reader/${episodeId}`
+                    : `/reader/${episodeId}?compare=${encodeURIComponent(compareTarget!)}`
+                }
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  isComparing
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-border text-muted hover:text-foreground"
+                }`}
+                aria-label="Toggle translation comparison"
+                title={isComparing ? "Exit compare" : "Compare translations"}
+              >
+                ⇄
+              </Link>
+            )}
           </div>
 
           {navigation.nextEpisodeId ? (

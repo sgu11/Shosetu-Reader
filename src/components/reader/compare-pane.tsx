@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 
 interface Props {
@@ -37,58 +38,34 @@ export function ComparePane({ episodeId, sourceParagraphs, primary, compare }: P
         </Link>
       </header>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <section className="surface-card rounded-xl p-5">
+      <div className="surface-card rounded-xl p-5">
+        <div className="grid grid-cols-2 gap-x-4 text-sm leading-7">
           <h3 className="mb-3 text-xs font-medium uppercase text-muted">
             {shortModel(primary.modelName)}
           </h3>
-          <ParagraphList
-            sourceCount={rowCount}
-            lines={primaryLines}
-            source={sourceParagraphs}
-          />
-        </section>
-        <section className="surface-card rounded-xl p-5">
           <h3 className="mb-3 text-xs font-medium uppercase text-muted">
             {shortModel(compare.modelName)}
           </h3>
-          <ParagraphList
-            sourceCount={rowCount}
-            lines={compareLines}
-            source={sourceParagraphs}
-          />
-        </section>
+          {Array.from({ length: rowCount }).map((_, i) => {
+            const p = primaryLines[i] ?? "";
+            const c = compareLines[i] ?? "";
+            const src = sourceParagraphs[i] ?? "";
+            const isBlank = p.trim() === "" && c.trim() === "" && src.trim() === "";
+            const cls = isBlank ? "h-4" : "whitespace-pre-wrap pb-2";
+            const titleAttr = src.length > 0 ? src : undefined;
+            return (
+              <Fragment key={i}>
+                <p data-paragraph-index={i} className={cls} title={titleAttr}>
+                  {p}
+                </p>
+                <p data-paragraph-index={i} className={cls} title={titleAttr}>
+                  {c}
+                </p>
+              </Fragment>
+            );
+          })}
+        </div>
       </div>
-    </div>
-  );
-}
-
-function ParagraphList({
-  sourceCount,
-  lines,
-  source,
-}: {
-  sourceCount: number;
-  lines: string[];
-  source: string[];
-}) {
-  return (
-    <div className="space-y-2 text-sm leading-7">
-      {Array.from({ length: sourceCount }).map((_, i) => {
-        const line = lines[i] ?? "";
-        const src = source[i] ?? "";
-        const isBlank = line.trim() === "" && src.trim() === "";
-        return (
-          <p
-            key={i}
-            data-paragraph-index={i}
-            className={isBlank ? "h-4" : "whitespace-pre-wrap"}
-            title={src.length > 0 ? src : undefined}
-          >
-            {line || <span className="text-muted/40">[untranslated]</span>}
-          </p>
-        );
-      })}
     </div>
   );
 }
