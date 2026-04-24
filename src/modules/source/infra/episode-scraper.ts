@@ -76,6 +76,7 @@ export async function fetchEpisodeContent(
 
 async function fetchPage(url: string): Promise<string> {
   const res = await fetch(url, {
+    signal: AbortSignal.timeout(20_000),
     headers: { "User-Agent": USER_AGENT },
   });
 

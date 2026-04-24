@@ -27,7 +27,7 @@ export async function getNovelStatusOverviews(
     uniqueNovelIds.map((novelId) => [novelId, createEmptyNovelStatusOverview()]),
   );
 
-  const [fetchRows, translatedRows, activeRows, modelRows, costRows] = await Promise.all([
+  const [fetchRows, translatedRows, activeRows, modelRows] = await Promise.all([
     db
       .select({
         novelId: episodes.novelId,
@@ -83,22 +83,19 @@ export async function getNovelStatusOverviews(
         ),
       )
       .groupBy(episodes.novelId, translations.modelName),
-    db
-      .select({
-        novelId: episodes.novelId,
-        totalCostUsd: sql<number>`sum(${translations.estimatedCostUsd})`,
-      })
-      .from(translations)
-      .innerJoin(episodes, eq(translations.episodeId, episodes.id))
-      .where(
-        and(
-          inArray(episodes.novelId, uniqueNovelIds),
-          eq(translations.targetLanguage, "ko"),
-          eq(translations.status, "available"),
-        ),
-      )
-      .groupBy(episodes.novelId),
   ]);
+
+  // Aggregate per-novel cost from modelRows (avoids a second SUM query over the same rows).
+  const costByNovel = new Map<string, number | null>();
+  for (const row of modelRows) {
+    const perModel = row.totalCostUsd != null ? Number(row.totalCostUsd) : null;
+    const prev = costByNovel.get(row.novelId);
+    if (perModel == null && prev == null) {
+      costByNovel.set(row.novelId, null);
+    } else {
+      costByNovel.set(row.novelId, (prev ?? 0) + (perModel ?? 0));
+    }
+  }
 
   for (const row of fetchRows) {
     statusMap[row.novelId] = {
@@ -121,10 +118,10 @@ export async function getNovelStatusOverviews(
     };
   }
 
-  for (const row of costRows) {
-    statusMap[row.novelId] = {
-      ...statusMap[row.novelId],
-      totalCostUsd: row.totalCostUsd != null ? Number(row.totalCostUsd) : null,
+  for (const [novelId, total] of costByNovel) {
+    statusMap[novelId] = {
+      ...statusMap[novelId],
+      totalCostUsd: total,
     };
   }
 

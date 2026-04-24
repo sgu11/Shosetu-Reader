@@ -67,6 +67,7 @@ async function translateBatch(texts: string[]): Promise<string[]> {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
+      signal: AbortSignal.timeout(30_000),
       headers: {
         Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",

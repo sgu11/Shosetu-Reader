@@ -35,6 +35,7 @@ export async function translateNovelMetadata(novelId: string): Promise<void> {
 
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
+    signal: AbortSignal.timeout(30_000),
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",

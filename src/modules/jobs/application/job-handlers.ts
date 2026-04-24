@@ -147,6 +147,9 @@ async function handleBulkTranslateAll(
     failed,
   });
 
+  const progressStep = Math.max(1, Math.floor(total / 100));
+  let lastProgressAt = 0;
+
   for (const [index, episodeId] of payload.episodeIds.entries()) {
     try {
       await requestTranslation(episodeId);
@@ -155,14 +158,24 @@ async function handleBulkTranslateAll(
       failed++;
     }
 
-    await context.updateProgress({
-      stage: "queueing",
-      processed: index + 1,
-      total,
-      queued,
-      failed,
-      currentEpisodeId: episodeId,
-    });
+    const processed = index + 1;
+    const now = Date.now();
+    const shouldUpdate =
+      processed === total ||
+      processed % progressStep === 0 ||
+      now - lastProgressAt >= 500;
+
+    if (shouldUpdate) {
+      lastProgressAt = now;
+      await context.updateProgress({
+        stage: "queueing",
+        processed,
+        total,
+        queued,
+        failed,
+        currentEpisodeId: episodeId,
+      });
+    }
   }
 
   return {

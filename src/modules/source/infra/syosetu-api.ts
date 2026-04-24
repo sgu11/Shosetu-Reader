@@ -74,6 +74,7 @@ export async function fetchNovelMetadata(
   url.searchParams.set("lim", "1");
 
   const res = await fetch(url.toString(), {
+    signal: AbortSignal.timeout(20_000),
     headers: { "User-Agent": "ShosetuReader/0.1" },
   });
 
@@ -127,6 +128,7 @@ export async function fetchRanking(
   url.searchParams.set("lim", String(Math.min(limit, 50)));
 
   const res = await fetch(url.toString(), {
+    signal: AbortSignal.timeout(20_000),
     headers: { "User-Agent": "ShosetuReader/0.1" },
   });
 

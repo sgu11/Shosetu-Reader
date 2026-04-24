@@ -22,6 +22,7 @@ export interface OpenRouterModel {
 }
 
 let memoryCache: CachedModelsPayload | null = null;
+let inflightRefresh: Promise<void> | null = null;
 
 function isFresh(payload: CachedModelsPayload) {
   return Date.now() - new Date(payload.fetchedAt).getTime() < CACHE_TTL_SECONDS * 1000;
@@ -79,6 +80,7 @@ async function fetchModelsFromApi() {
   }
 
   const response = await fetch("https://openrouter.ai/api/v1/models", {
+    signal: AbortSignal.timeout(15_000),
     headers: {
       Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
     },
@@ -114,6 +116,36 @@ async function fetchModelsFromApi() {
   } satisfies CachedModelsPayload;
 }
 
+async function refreshModelsInBackground() {
+  if (inflightRefresh) return inflightRefresh;
+
+  inflightRefresh = (async () => {
+    const lock = await acquireRequestDeduplicationLock({
+      scope: "openrouter-models-refresh",
+      ttlMs: FETCH_LOCK_TTL_MS,
+    });
+    if (!lock.acquired) return;
+
+    try {
+      const payload = await fetchModelsFromApi();
+      await writeCachedModels(payload);
+    } catch (error) {
+      logger.warn("Background OpenRouter model refresh failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      await releaseRequestDeduplicationLock({
+        key: lock.key,
+        token: lock.token,
+      });
+    }
+  })().finally(() => {
+    inflightRefresh = null;
+  });
+
+  return inflightRefresh;
+}
+
 export async function getOpenRouterModels(options?: {
   forceRefresh?: boolean;
   allowStale?: boolean;
@@ -121,20 +153,23 @@ export async function getOpenRouterModels(options?: {
   const allowStale = options?.allowStale ?? true;
   const cached = options?.forceRefresh ? null : await readCachedModels();
 
-  if (cached && isFresh(cached)) {
+  if (cached && isFresh(cached) && !options?.forceRefresh) {
     return cached.models;
   }
 
+  // Stale-while-revalidate: serve stale immediately, refresh in background.
+  if (cached && allowStale && !options?.forceRefresh) {
+    void refreshModelsInBackground();
+    return cached.models;
+  }
+
+  // Cold cache (or forceRefresh): must block.
   const lock = await acquireRequestDeduplicationLock({
     scope: "openrouter-models-refresh",
     ttlMs: FETCH_LOCK_TTL_MS,
   });
 
   if (!lock.acquired) {
-    if (cached && allowStale) {
-      return cached.models;
-    }
-
     const retryAfterMs = (lock.retryAfterSeconds ?? 1) * 1000;
     await new Promise((resolve) => setTimeout(resolve, Math.min(retryAfterMs, 1000)));
     const secondRead = await readCachedModels();

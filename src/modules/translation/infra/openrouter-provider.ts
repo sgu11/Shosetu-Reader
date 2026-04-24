@@ -117,6 +117,7 @@ export class OpenRouterProvider implements TranslationProvider {
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
+        signal: AbortSignal.timeout(180_000),
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
           "Content-Type": "application/json",
