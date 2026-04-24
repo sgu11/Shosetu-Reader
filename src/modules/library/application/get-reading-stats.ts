@@ -147,32 +147,37 @@ export async function getReadingStats(
     lastReadAt: new Date(row.lastReadAt).toISOString(),
   }));
 
-  const translationsSub = db
+  // Dedup at (episode, model) granularity so SUM is unconditional. Using
+  // row_number() over (partition ...) lets us pick the most recent translation
+  // per pair even when isCanonical is not set on legacy rows.
+  const rankedTranslations = db
     .select({
       episodeId: translations.episodeId,
       modelName: translations.modelName,
       estimatedCostUsd: translations.estimatedCostUsd,
+      rn: sql<number>`row_number() over (partition by ${translations.episodeId}, ${translations.modelName} order by ${translations.createdAt} desc)`.as("rn"),
     })
     .from(translations)
-    .where(
-      and(
-        eq(translations.status, "available"),
-        eq(translations.isCanonical, true),
-      ),
-    )
-    .as("canonical_translations");
+    .where(eq(translations.status, "available"))
+    .as("ranked_translations");
 
   const modelRows = await db
     .select({
-      modelName: translationsSub.modelName,
+      modelName: rankedTranslations.modelName,
       episodes: sql<number>`count(distinct ${readingEvents.episodeId})::int`,
-      cost: sql<number>`coalesce(sum(${translationsSub.estimatedCostUsd}), 0)::float`,
+      cost: sql<number>`coalesce(sum(${rankedTranslations.estimatedCostUsd}), 0)::float`,
     })
     .from(readingEvents)
     .innerJoin(episodes, eq(readingEvents.episodeId, episodes.id))
-    .innerJoin(translationsSub, eq(translationsSub.episodeId, episodes.id))
+    .innerJoin(
+      rankedTranslations,
+      and(
+        eq(rankedTranslations.episodeId, episodes.id),
+        eq(rankedTranslations.rn, 1),
+      ),
+    )
     .where(and(...eventFilters))
-    .groupBy(translationsSub.modelName)
+    .groupBy(rankedTranslations.modelName)
     .orderBy(desc(sql`count(distinct ${readingEvents.episodeId})`))
     .limit(10);
 
