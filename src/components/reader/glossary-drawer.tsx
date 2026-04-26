@@ -17,7 +17,10 @@ export async function GlossaryDrawer({ entries }: Props) {
   const locale = await getLocale();
 
   return (
-    <aside className="no-scrollbar overflow-y-auto border-l border-border bg-surface p-6">
+    <aside
+      data-glossary-drawer
+      className="no-scrollbar overflow-y-auto border-l border-border bg-surface p-6"
+    >
       <Eyebrow>{t(locale, "reader.glossaryHeading")}</Eyebrow>
       {entries.length === 0 ? (
         <p className="mt-4 font-serif text-xs text-muted">

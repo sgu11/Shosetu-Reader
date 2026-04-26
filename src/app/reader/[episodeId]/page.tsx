@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChapterHeading } from "@/components/reader/chapter-heading";
 import { ComparePane } from "@/components/reader/compare-pane";
 import { GlossaryDrawer } from "@/components/reader/glossary-drawer";
+import { GlossaryToggle } from "@/components/reader/glossary-toggle";
 import { PacingBar } from "@/components/reader/pacing-bar";
 import { ProgressTracker } from "@/components/progress-tracker";
 import { ReaderSettings } from "@/components/reader-settings";
@@ -110,6 +111,7 @@ export default async function ReaderPage({ params, searchParams }: Props) {
               pendingTranslation={pendingTranslation}
             />
             <ReaderSettings />
+            {hasGlossary ? <GlossaryToggle /> : null}
             {(isComparing || compareTarget) && (
               <Link
                 href={
@@ -144,6 +146,7 @@ export default async function ReaderPage({ params, searchParams }: Props) {
       </nav>
 
       <div
+        data-reader-grid
         className={`mx-auto grid w-full max-w-6xl flex-1 ${
           hasGlossary ? "lg:grid-cols-[1fr_300px]" : ""
         }`}

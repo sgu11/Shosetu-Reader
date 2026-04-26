@@ -46,6 +46,10 @@ function readThemeCookie(value: string | undefined): ThemeValue {
   return "system";
 }
 
+function readGlossaryCookie(value: string | undefined): "show" | "hide" {
+  return value === "hide" ? "hide" : "show";
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -54,11 +58,13 @@ export default async function RootLayout({
   const locale = await getLocale();
   const cookieStore = await cookies();
   const theme = readThemeCookie(cookieStore.get("theme")?.value);
+  const glossary = readGlossaryCookie(cookieStore.get("glossary-visible")?.value);
 
   return (
     <html
       lang={locale}
       data-theme={theme}
+      data-glossary={glossary}
       className={`${newsreaderFont.variable} ${monoFont.variable} ${jpSerifFont.variable} h-full antialiased`}
     >
       <head>
