@@ -89,19 +89,19 @@ export default async function ReaderPage({ params, searchParams }: Props) {
       </div>
 
       <nav className="sticky top-0 z-10 border-b border-border bg-background/90 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-6 py-2">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-6 py-2 sm:flex-nowrap sm:justify-between">
           {navigation.prevEpisodeId ? (
             <Link
               href={`/reader/${navigation.prevEpisodeId}`}
-              className="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary transition-colors hover:bg-surface-strong hover:text-foreground"
+              className="order-1 shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary transition-colors hover:bg-surface-strong hover:text-foreground"
             >
               ←
             </Link>
           ) : (
-            <span className="invisible shrink-0 rounded-full px-3 py-1.5 text-sm font-medium">←</span>
+            <span className="invisible order-1 shrink-0 rounded-full px-3 py-1.5 text-sm font-medium">←</span>
           )}
 
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="order-3 flex w-full min-w-0 flex-wrap items-center justify-center gap-2 sm:order-2 sm:w-auto sm:flex-nowrap">
             <TranslationToggle
               episodeId={episodeId}
               initialTranslation={initialTranslation}
@@ -135,12 +135,12 @@ export default async function ReaderPage({ params, searchParams }: Props) {
           {navigation.nextEpisodeId ? (
             <Link
               href={`/reader/${navigation.nextEpisodeId}`}
-              className="shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary transition-colors hover:bg-surface-strong hover:text-foreground"
+              className="order-2 ml-auto shrink-0 rounded-full border border-border bg-surface px-3 py-1.5 text-sm font-medium text-secondary transition-colors hover:bg-surface-strong hover:text-foreground sm:order-3 sm:ml-0"
             >
               →
             </Link>
           ) : (
-            <span className="invisible shrink-0 rounded-full px-3 py-1.5 text-sm font-medium">→</span>
+            <span className="invisible order-2 ml-auto shrink-0 rounded-full px-3 py-1.5 text-sm font-medium sm:order-3 sm:ml-0">→</span>
           )}
         </div>
       </nav>
