@@ -2,7 +2,10 @@ import { logger } from "@/lib/logger";
 import { recordJobRetry, recordRecoveredStaleJob } from "@/lib/ops-metrics";
 import { createRedisConnection, getRedisClient } from "@/lib/redis/client";
 import { getJobHandler } from "./job-handlers";
-import { recoverStaleTranslations } from "@/modules/translation/application/recover-stale-translations";
+import {
+  recoverAbandonedTranslationsAtStartup,
+  recoverStaleTranslations,
+} from "@/modules/translation/application/recover-stale-translations";
 import {
   claimQueuedJob,
   getJobRun,
@@ -26,7 +29,12 @@ const queueKeys = {
 const runtimeConfig = {
   popTimeoutSeconds: 5,
   maxAttempts: 3,
+  // Standing recovery window. Deliberately conservative — the boot-time
+  // sweep below catches deploy-induced zombies with a 30s threshold.
   staleAfterMs: 30 * 60 * 1000,
+  // Boot sweep window. Anything 'running' for >30s when the worker
+  // comes up belongs to a process that no longer exists.
+  startupStaleAfterMs: 30_000,
   delayedPollLimit: 100,
   reconcileLimit: 100,
   reconcileEveryMs: 30_000,
@@ -77,6 +85,20 @@ export async function startJobWorker() {
   });
 
   logger.info("Job worker started");
+
+  // Boot-time sweep: a deploy that kills the previous worker mid-job
+  // leaves translations in 'processing' and job_runs in 'running'
+  // state forever (or until the 30-min stale threshold). Recover
+  // both immediately so users hitting retry don't get blocked by
+  // dedup against zombie rows.
+  try {
+    await recoverAbandonedTranslationsAtStartup();
+    await recoverStaleRunningJobs(runtimeConfig.startupStaleAfterMs);
+  } catch (error) {
+    logger.warn("Startup recovery sweep failed", {
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
 
   while (!shuttingDown) {
     try {
@@ -216,9 +238,9 @@ async function reconcileQueuedJobs() {
   }
 }
 
-async function recoverStaleRunningJobs() {
+async function recoverStaleRunningJobs(staleAfterMs = runtimeConfig.staleAfterMs) {
   const staleJobs = await listStaleRunningJobs({
-    staleBefore: new Date(Date.now() - runtimeConfig.staleAfterMs),
+    staleBefore: new Date(Date.now() - staleAfterMs),
     limit: runtimeConfig.reconcileLimit,
   });
 
@@ -234,6 +256,8 @@ async function recoverStaleRunningJobs() {
 function getRetryDelayMs(attemptCount: number) {
   return Math.min(60_000, 1_000 * 2 ** Math.max(0, attemptCount - 1));
 }
+
+export const __getRetryDelayMsForTest = getRetryDelayMs;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));

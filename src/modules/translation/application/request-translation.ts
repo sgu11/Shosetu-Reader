@@ -148,8 +148,19 @@ export async function requestTranslation(
   // checksum) matches — but a prompt-version bump or checksum change would
   // bypass it and create a parallel translation for the same episode under
   // the same model, doubling the OpenRouter spend.
+  //
+  // Stale guard: a 'processing' row whose worker died mid-flight would
+  // otherwise block all retries until the 10-min stale recovery sweep
+  // fires. Treat anything older than 5 minutes as abandoned so the user's
+  // retry click doesn't no-op.
+  const STALE_PROCESSING_CUTOFF_MS = 5 * 60 * 1000;
+  const staleCutoff = new Date(Date.now() - STALE_PROCESSING_CUTOFF_MS);
   const [activeAny] = await db
-    .select({ id: translations.id, status: translations.status })
+    .select({
+      id: translations.id,
+      status: translations.status,
+      processingStartedAt: translations.processingStartedAt,
+    })
     .from(translations)
     .where(
       and(
@@ -162,7 +173,15 @@ export async function requestTranslation(
     .limit(1);
 
   if (activeAny) {
-    return { translationId: activeAny.id, status: activeAny.status };
+    const isStale =
+      activeAny.status === "processing" &&
+      activeAny.processingStartedAt != null &&
+      activeAny.processingStartedAt < staleCutoff;
+    if (!isStale) {
+      return { translationId: activeAny.id, status: activeAny.status };
+    }
+    // Fall through and re-queue; the stale recovery sweep will mark
+    // the abandoned row 'failed' shortly.
   }
 
   // Check for existing translation with same identity
