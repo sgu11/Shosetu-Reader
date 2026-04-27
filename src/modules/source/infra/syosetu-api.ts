@@ -1,17 +1,42 @@
 /**
  * Syosetu Novel API client.
  *
- * Uses the official API at https://api.syosetu.com/novelapi/api/
+ * Uses the official API at https://api.syosetu.com/novelapi/api/ for the
+ * general site, and https://api.syosetu.com/novel18api/api/ for the R-18
+ * sister site (Nocturne / Midnight / MoonLight). Both endpoints return the
+ * same JSON shape; only the base URL and an `over18=yes` cookie differ.
+ *
  * Docs (Japanese): https://dev.syosetu.com/man/api/
  */
 
 import { z } from "zod";
 
-const SYOSETU_API_BASE = "https://api.syosetu.com/novelapi/api/";
+const DEFAULT_API_BASE = "https://api.syosetu.com/novelapi/api/";
+const USER_AGENT = "ShosetuReader/0.1";
 
 // Fields we request: title, ncode, writer, story, general_firstup,
 // general_lastup, end, general_all_no, length, novelupdated_at
 const OUTPUT_FIELDS = "t-n-w-s-gf-ga-e-nu-gl-l";
+
+export interface SyosetuFetchConfig {
+  apiBase?: string;
+  /** Set to "over18=yes" for the R-18 (novel18) endpoint. */
+  cookieHeader?: string;
+}
+
+const DEFAULT_CONFIG: Required<Pick<SyosetuFetchConfig, "apiBase">> = {
+  apiBase: DEFAULT_API_BASE,
+};
+
+function resolveConfig(config?: SyosetuFetchConfig): Required<Pick<SyosetuFetchConfig, "apiBase">> & SyosetuFetchConfig {
+  return { ...DEFAULT_CONFIG, ...(config ?? {}) };
+}
+
+function buildHeaders(cookieHeader?: string): Record<string, string> {
+  const headers: Record<string, string> = { "User-Agent": USER_AGENT };
+  if (cookieHeader) headers.Cookie = cookieHeader;
+  return headers;
+}
 
 export type RankingPeriod = "daily" | "weekly" | "monthly" | "quarterly";
 
@@ -61,13 +86,31 @@ export class SyosetuApiError extends Error {
   }
 }
 
+function adaptRow(rawNovel: SyosetuNovelRaw): SyosetuNovelMetadata {
+  return {
+    ncode: rawNovel.ncode.toLowerCase(),
+    title: rawNovel.title,
+    authorName: rawNovel.writer,
+    summary: rawNovel.story,
+    firstPublishedAt: rawNovel.general_firstup,
+    lastUpdatedAt: rawNovel.general_lastup,
+    isCompleted: rawNovel.end === 0 && rawNovel.general_all_no > 0,
+    totalEpisodes: rawNovel.general_all_no,
+    totalLength: rawNovel.length,
+    novelUpdatedAt: rawNovel.novelupdated_at,
+    raw: rawNovel,
+  };
+}
+
 /**
  * Fetch novel metadata from the Syosetu API by ncode.
  */
 export async function fetchNovelMetadata(
   ncode: string,
+  config?: SyosetuFetchConfig,
 ): Promise<SyosetuNovelMetadata> {
-  const url = new URL(SYOSETU_API_BASE);
+  const cfg = resolveConfig(config);
+  const url = new URL(cfg.apiBase);
   url.searchParams.set("ncode", ncode.toLowerCase());
   url.searchParams.set("of", OUTPUT_FIELDS);
   url.searchParams.set("out", "json");
@@ -75,7 +118,7 @@ export async function fetchNovelMetadata(
 
   const res = await fetch(url.toString(), {
     signal: AbortSignal.timeout(20_000),
-    headers: { "User-Agent": "ShosetuReader/0.1" },
+    headers: buildHeaders(cfg.cookieHeader),
   });
 
   if (!res.ok) {
@@ -94,21 +137,7 @@ export async function fetchNovelMetadata(
     );
   }
 
-  const rawNovel = syosetuNovelSchema.parse(json[1]);
-
-  return {
-    ncode: rawNovel.ncode.toLowerCase(),
-    title: rawNovel.title,
-    authorName: rawNovel.writer,
-    summary: rawNovel.story,
-    firstPublishedAt: rawNovel.general_firstup,
-    lastUpdatedAt: rawNovel.general_lastup,
-    isCompleted: rawNovel.end === 0 && rawNovel.general_all_no > 0,
-    totalEpisodes: rawNovel.general_all_no,
-    totalLength: rawNovel.length,
-    novelUpdatedAt: rawNovel.novelupdated_at,
-    raw: rawNovel,
-  };
+  return adaptRow(syosetuNovelSchema.parse(json[1]));
 }
 
 /**
@@ -118,9 +147,11 @@ export async function fetchNovelMetadata(
 export async function fetchRanking(
   period: RankingPeriod = "daily",
   limit: number = 20,
+  config?: SyosetuFetchConfig,
 ): Promise<SyosetuNovelMetadata[]> {
+  const cfg = resolveConfig(config);
   const order = RANKING_ORDER_MAP[period];
-  const url = new URL(SYOSETU_API_BASE);
+  const url = new URL(cfg.apiBase);
   url.searchParams.set("order", order);
   url.searchParams.set("type", "r"); // ongoing series only — exclude short stories (_t)
   url.searchParams.set("of", OUTPUT_FIELDS);
@@ -129,7 +160,7 @@ export async function fetchRanking(
 
   const res = await fetch(url.toString(), {
     signal: AbortSignal.timeout(20_000),
-    headers: { "User-Agent": "ShosetuReader/0.1" },
+    headers: buildHeaders(cfg.cookieHeader),
   });
 
   if (!res.ok) {
@@ -150,20 +181,7 @@ export async function fetchRanking(
   for (let i = 1; i < json.length; i++) {
     const parsed = syosetuNovelSchema.safeParse(json[i]);
     if (parsed.success) {
-      const raw = parsed.data;
-      results.push({
-        ncode: raw.ncode.toLowerCase(),
-        title: raw.title,
-        authorName: raw.writer,
-        summary: raw.story,
-        firstPublishedAt: raw.general_firstup,
-        lastUpdatedAt: raw.general_lastup,
-        isCompleted: raw.end === 0 && raw.general_all_no > 0,
-        totalEpisodes: raw.general_all_no,
-        totalLength: raw.length,
-        novelUpdatedAt: raw.novelupdated_at,
-        raw,
-      });
+      results.push(adaptRow(parsed.data));
     }
   }
 

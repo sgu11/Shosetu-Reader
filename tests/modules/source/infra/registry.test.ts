@@ -8,14 +8,19 @@ describe("source registry", () => {
     expect(adapter.isAdult).toBe(false);
   });
 
+  it("returns the nocturne adapter for site=nocturne", () => {
+    const adapter = getAdapter("nocturne");
+    expect(adapter.site).toBe("nocturne");
+    expect(adapter.isAdult).toBe(true);
+  });
+
   it("throws for sites that are not yet registered", () => {
     expect(() => getAdapter("kakuyomu")).toThrow(/not implemented/i);
-    expect(() => getAdapter("nocturne")).toThrow(/not implemented/i);
     expect(() => getAdapter("alphapolis")).toThrow(/not implemented/i);
   });
 
   it("lists only enabled sites", () => {
-    expect(listEnabledSites()).toEqual(["syosetu"]);
+    expect(listEnabledSites()).toEqual(["syosetu", "nocturne"]);
   });
 });
 
@@ -27,7 +32,14 @@ describe("parseInput", () => {
     });
   });
 
-  it("recognizes a bare ncode as syosetu", () => {
+  it("recognizes a nocturne URL", () => {
+    expect(parseInput("https://novel18.syosetu.com/n5555aa/")).toEqual({
+      site: "nocturne",
+      id: "n5555aa",
+    });
+  });
+
+  it("recognizes a bare ncode as syosetu (nocturne requires URL form)", () => {
     expect(parseInput("n1234ab")).toEqual({ site: "syosetu", id: "n1234ab" });
   });
 

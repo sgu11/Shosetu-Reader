@@ -1,11 +1,15 @@
 /**
- * Syosetu episode scraping — TOC parsing and episode body extraction.
+ * Syosetu-family episode scraping — TOC parsing and episode body extraction.
  *
- * TOC page: https://ncode.syosetu.com/{ncode}/
+ * The HTML shape is the same on the general site (`ncode.syosetu.com`) and
+ * the R-18 sister site (`novel18.syosetu.com`). Callers pass the host-specific
+ * novel URL plus optional cookie header (e.g. `over18=yes` for novel18).
+ *
+ * TOC page: {novelBase}/{ncode}/
  *   - Episodes listed as <a href="/{ncode}/{num}/" class="p-eplist__subtitle">
  *   - Chapter headings in <div class="p-eplist__chapter-title">
  *
- * Episode page: https://ncode.syosetu.com/{ncode}/{num}/
+ * Episode page: {novelBase}/{ncode}/{num}/
  *   - Title in <h1 class="p-novel__title">
  *   - Body paragraphs in <p id="L1">, <p id="L2">, etc.
  */
@@ -15,6 +19,25 @@ import { createHash } from "crypto";
 import { buildNovelUrl, buildEpisodeUrl } from "../domain/ncode";
 
 const USER_AGENT = "ShosetuReader/0.1";
+
+export interface ScraperConfig {
+  /**
+   * Override the default `https://ncode.syosetu.com/` host (used by the
+   * nocturne adapter to point at `https://novel18.syosetu.com/`).
+   */
+  novelBaseUrl?: (ncode: string) => string;
+  buildEpisodeUrl?: (ncode: string, episodeNumber: number) => string;
+  /** Cookie header to forward (e.g. "over18=yes" for novel18). */
+  cookieHeader?: string;
+}
+
+function resolveConfig(config?: ScraperConfig) {
+  return {
+    novelBaseUrl: config?.novelBaseUrl ?? buildNovelUrl,
+    buildEpisodeUrl: config?.buildEpisodeUrl ?? buildEpisodeUrl,
+    cookieHeader: config?.cookieHeader,
+  };
+}
 
 export interface TocEntry {
   episodeNumber: number;
@@ -37,16 +60,19 @@ export interface EpisodeContent {
  * Fetch and parse the novel's table of contents to get episode list.
  * Follows pagination automatically (Syosetu shows ~100 episodes per page).
  */
-export async function fetchEpisodeList(ncode: string): Promise<TocEntry[]> {
+export async function fetchEpisodeList(
+  ncode: string,
+  config?: ScraperConfig,
+): Promise<TocEntry[]> {
+  const cfg = resolveConfig(config);
   const allEntries: TocEntry[] = [];
   let page = 1;
 
   while (true) {
-    const url = page === 1
-      ? buildNovelUrl(ncode)
-      : `${buildNovelUrl(ncode)}?p=${page}`;
-    const html = await fetchPage(url);
-    const entries = parseToc(html, ncode);
+    const baseUrl = cfg.novelBaseUrl(ncode);
+    const url = page === 1 ? baseUrl : `${baseUrl}?p=${page}`;
+    const html = await fetchPage(url, cfg.cookieHeader);
+    const entries = parseToc(html, (ep) => cfg.buildEpisodeUrl(ncode, ep));
 
     if (entries.length === 0) break;
     allEntries.push(...entries);
@@ -66,18 +92,23 @@ export async function fetchEpisodeList(ncode: string): Promise<TocEntry[]> {
 export async function fetchEpisodeContent(
   ncode: string,
   episodeNumber: number,
+  config?: ScraperConfig,
 ): Promise<EpisodeContent> {
-  const url = buildEpisodeUrl(ncode, episodeNumber);
-  const html = await fetchPage(url);
+  const cfg = resolveConfig(config);
+  const url = cfg.buildEpisodeUrl(ncode, episodeNumber);
+  const html = await fetchPage(url, cfg.cookieHeader);
   return parseEpisodePage(html);
 }
 
 // --- Internal ---
 
-async function fetchPage(url: string): Promise<string> {
+async function fetchPage(url: string, cookieHeader?: string): Promise<string> {
+  const headers: Record<string, string> = { "User-Agent": USER_AGENT };
+  if (cookieHeader) headers.Cookie = cookieHeader;
+
   const res = await fetch(url, {
     signal: AbortSignal.timeout(20_000),
-    headers: { "User-Agent": USER_AGENT },
+    headers,
   });
 
   if (!res.ok) {
@@ -100,7 +131,10 @@ function parseLastPage(html: string): number {
   return match ? parseInt(match[1], 10) : 1;
 }
 
-export function parseToc(html: string, ncode: string): TocEntry[] {
+export function parseToc(
+  html: string,
+  buildEpUrl: (episodeNumber: number) => string,
+): TocEntry[] {
   const $ = cheerio.load(html);
   const entries: TocEntry[] = [];
 
@@ -115,7 +149,7 @@ export function parseToc(html: string, ncode: string): TocEntry[] {
     entries.push({
       episodeNumber,
       title,
-      sourceUrl: buildEpisodeUrl(ncode, episodeNumber),
+      sourceUrl: buildEpUrl(episodeNumber),
     });
   });
 

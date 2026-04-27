@@ -79,7 +79,10 @@ const SAMPLE_EPISODE_WITH_AFTERWORD_ONLY = `
 
 describe("parseToc", () => {
   it("extracts episode entries from TOC HTML", () => {
-    const entries = parseToc(SAMPLE_TOC_HTML, "n9669bk");
+    const entries = parseToc(
+      SAMPLE_TOC_HTML,
+      (ep) => `https://ncode.syosetu.com/n9669bk/${ep}/`,
+    );
 
     expect(entries).toHaveLength(3);
     expect(entries[0]).toEqual({
@@ -93,7 +96,10 @@ describe("parseToc", () => {
   });
 
   it("returns empty array for HTML with no episodes", () => {
-    const entries = parseToc("<html><body></body></html>", "n1234ab");
+    const entries = parseToc(
+      "<html><body></body></html>",
+      (ep) => `https://ncode.syosetu.com/n1234ab/${ep}/`,
+    );
     expect(entries).toHaveLength(0);
   });
 });
