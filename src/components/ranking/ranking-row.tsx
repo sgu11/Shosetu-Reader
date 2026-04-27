@@ -2,23 +2,26 @@
 
 import { useRouter } from "next/navigation";
 import { NovelCover } from "@/components/novel-cover";
+import { SourcePill } from "@/components/source-pill";
 import { useTranslation } from "@/lib/i18n/client";
+import type { SourceSite } from "@/modules/source/domain/source-adapter";
 
-interface RankingItem {
+interface RankingRowItem {
   rank: number;
-  ncode: string;
+  site: SourceSite;
+  sourceId: string;
   title: string;
   authorName: string;
-  totalEpisodes: number;
-  isCompleted: boolean;
+  totalEpisodes: number | null;
+  isCompleted: boolean | null;
   sourceUrl: string;
   novelId: string | null;
 }
 
 interface Props {
-  item: RankingItem;
+  item: RankingRowItem;
   titleKo?: string;
-  onRegister: (ncode: string) => void;
+  onRegister: () => void;
   registering: boolean;
 }
 
@@ -34,8 +37,11 @@ export function RankingRow({ item, titleKo, onRegister, registering }: Props) {
       </span>
       <NovelCover jp={item.title} kr={titleKo ?? null} width={38} height={54} />
       <div className="min-w-0">
-        <div className="truncate font-serif text-base font-medium leading-tight text-foreground">
-          {krTitle}
+        <div className="flex items-center gap-1.5">
+          <SourcePill site={item.site} />
+          <div className="truncate font-serif text-base font-medium leading-tight text-foreground">
+            {krTitle}
+          </div>
         </div>
         <div className="truncate font-jp text-[11.5px] text-muted">
           {titleKo ? `${item.title} · ` : ""}
@@ -43,7 +49,7 @@ export function RankingRow({ item, titleKo, onRegister, registering }: Props) {
         </div>
       </div>
       <span className="font-mono text-[11px] text-secondary">
-        {item.totalEpisodes} {t("ranking.eps")}
+        {item.totalEpisodes ?? "—"} {t("ranking.eps")}
       </span>
       {item.novelId ? (
         <button
@@ -56,7 +62,7 @@ export function RankingRow({ item, titleKo, onRegister, registering }: Props) {
       ) : (
         <button
           type="button"
-          onClick={() => onRegister(item.ncode)}
+          onClick={onRegister}
           disabled={registering}
           className="rounded-full border border-border-strong px-3 py-1.5 text-[11px] text-secondary transition-colors hover:bg-surface-strong disabled:opacity-50"
         >

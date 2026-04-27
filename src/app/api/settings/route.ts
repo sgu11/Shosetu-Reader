@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { users } from "@/lib/db/schema";
+import { users, readerPreferences } from "@/lib/db/schema";
 import { rateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
@@ -27,10 +27,17 @@ export async function GET(req: NextRequest) {
       .where(eq(users.id, userId))
       .limit(1);
 
+    const [prefs] = await db
+      .select({ adultContentEnabled: readerPreferences.adultContentEnabled })
+      .from(readerPreferences)
+      .where(eq(readerPreferences.userId, userId))
+      .limit(1);
+
     return NextResponse.json({
       locale: user?.preferredUiLocale ?? "ko",
       readerLanguage: user?.preferredReaderLanguage ?? "ja",
       theme: user?.theme ?? "system",
+      adultContentEnabled: prefs?.adultContentEnabled ?? true,
     });
   } catch (err) {
     logger.error("Failed to fetch settings", {
@@ -50,7 +57,7 @@ export async function PUT(req: NextRequest) {
     const db = getDb();
     const body = await req.json();
 
-    const { locale, readerLanguage, theme } = body;
+    const { locale, readerLanguage, theme, adultContentEnabled } = body;
 
     // Update user preferences
     const userUpdate: Record<string, string> = {};
@@ -63,6 +70,24 @@ export async function PUT(req: NextRequest) {
         .update(users)
         .set({ ...userUpdate, updatedAt: new Date() })
         .where(eq(users.id, userId));
+    }
+
+    if (typeof adultContentEnabled === "boolean") {
+      const [existing] = await db
+        .select({ id: readerPreferences.id })
+        .from(readerPreferences)
+        .where(eq(readerPreferences.userId, userId))
+        .limit(1);
+      if (existing) {
+        await db
+          .update(readerPreferences)
+          .set({ adultContentEnabled, updatedAt: new Date() })
+          .where(eq(readerPreferences.userId, userId));
+      } else {
+        await db
+          .insert(readerPreferences)
+          .values({ userId, adultContentEnabled });
+      }
     }
 
     return NextResponse.json({ ok: true });

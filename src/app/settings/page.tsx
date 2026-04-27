@@ -28,6 +28,7 @@ export default function SettingsPage() {
   const [globalPrompt, setGlobalPrompt] = useState("");
   const [defaultGlobalPrompt, setDefaultGlobalPrompt] = useState("");
   const [favoriteModels, setFavoriteModels] = useState<string[]>([]);
+  const [adultContentEnabled, setAdultContentEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -41,6 +42,23 @@ export default function SettingsPage() {
         setFavoriteModels(Array.isArray(data.favoriteModels) ? data.favoriteModels : []);
       })
       .catch(() => {});
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.adultContentEnabled === "boolean") {
+          setAdultContentEnabled(data.adultContentEnabled);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const toggleAdult = useCallback((next: boolean) => {
+    setAdultContentEnabled(next);
+    fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adultContentEnabled: next }),
+    }).catch(() => {});
   }, []);
 
   const saveSettings = useCallback(async () => {
@@ -120,6 +138,22 @@ export default function SettingsPage() {
                     {t("settings.contentWidth")} —{" "}
                     <span className="font-mono">Aa</span> in reader chrome.
                   </p>
+                </SettingRow>
+                <SettingRow
+                  label={t("settings.adultContent")}
+                  hint={t("settings.adultContentDesc")}
+                >
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={adultContentEnabled}
+                      onChange={(e) => toggleAdult(e.target.checked)}
+                      className="h-4 w-4 accent-accent"
+                    />
+                    {adultContentEnabled
+                      ? t("settings.adultContentOn")
+                      : t("settings.adultContentOff")}
+                  </label>
                 </SettingRow>
               </>
             ) : null}

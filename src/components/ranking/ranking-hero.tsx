@@ -2,23 +2,26 @@
 
 import { useRouter } from "next/navigation";
 import { NovelCover } from "@/components/novel-cover";
+import { SourcePill } from "@/components/source-pill";
 import { useTranslation } from "@/lib/i18n/client";
+import type { SourceSite } from "@/modules/source/domain/source-adapter";
 
-interface RankingItem {
+interface RankingHeroItem {
   rank: number;
-  ncode: string;
+  site: SourceSite;
+  sourceId: string;
   title: string;
   authorName: string;
-  totalEpisodes: number;
-  isCompleted: boolean;
+  totalEpisodes: number | null;
+  isCompleted: boolean | null;
   sourceUrl: string;
   novelId: string | null;
 }
 
 interface Props {
-  item: RankingItem;
+  item: RankingHeroItem;
   titleKo?: string;
-  onRegister: (ncode: string) => void;
+  onRegister: () => void;
   registering: boolean;
 }
 
@@ -36,8 +39,12 @@ export function RankingHero({ item, titleKo, onRegister, registering }: Props) {
             №{item.rank}
           </span>
           <div>
-            <div className="font-mono text-[10px] uppercase tracking-wider text-muted">
-              {item.ncode} · {item.totalEpisodes} {t("ranking.eps")}
+            <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted">
+              <SourcePill site={item.site} />
+              <span>
+                {item.sourceId}
+                {item.totalEpisodes != null ? ` · ${item.totalEpisodes} ${t("ranking.eps")}` : ""}
+              </span>
             </div>
             <h2 className="m-0 font-serif text-2xl font-medium leading-tight text-foreground md:text-3xl">
               {krTitle}
@@ -61,7 +68,7 @@ export function RankingHero({ item, titleKo, onRegister, registering }: Props) {
         ) : (
           <button
             type="button"
-            onClick={() => onRegister(item.ncode)}
+            onClick={onRegister}
             disabled={registering}
             className="btn-pill btn-primary text-[12px]"
           >

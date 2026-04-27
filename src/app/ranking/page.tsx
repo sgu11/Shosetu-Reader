@@ -1,55 +1,83 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Eyebrow } from "@/components/eyebrow";
 import { RankingHero } from "@/components/ranking/ranking-hero";
 import { RankingRow } from "@/components/ranking/ranking-row";
+import { SourcePill } from "@/components/source-pill";
 import { useTranslation } from "@/lib/i18n/client";
+import type { TranslationKey } from "@/lib/i18n";
+import type { RankingPeriod, SourceSite } from "@/modules/source/domain/source-adapter";
 
-type Period = "daily" | "weekly" | "monthly" | "quarterly";
+type Scope = "sfw" | "all" | SourceSite;
 
-interface RankingItem {
+interface SectionItem {
   rank: number;
-  ncode: string;
+  site: SourceSite;
+  sourceId: string;
   title: string;
   authorName: string;
-  totalEpisodes: number;
-  isCompleted: boolean;
+  totalEpisodes: number | null;
+  isCompleted: boolean | null;
   sourceUrl: string;
   novelId: string | null;
 }
 
+interface Section {
+  site: SourceSite;
+  status: "ok" | "timeout" | "error";
+  errorMessage: string | null;
+  items: SectionItem[];
+}
+
+const SCOPES: ReadonlyArray<Scope> = ["sfw", "all", "syosetu", "nocturne", "kakuyomu", "alphapolis"];
+
+const PERIOD_BY_SCOPE: Record<Scope, RankingPeriod[]> = {
+  sfw: ["daily", "weekly", "monthly", "quarterly"],
+  all: ["daily", "weekly", "monthly"],
+  syosetu: ["daily", "weekly", "monthly", "quarterly"],
+  nocturne: ["daily", "weekly", "monthly", "quarterly"],
+  kakuyomu: ["daily", "weekly", "monthly", "yearly", "entire"],
+  alphapolis: ["hot"],
+};
+
 export default function RankingPage() {
   const { t } = useTranslation();
-  const [period, setPeriod] = useState<Period>("daily");
-  const [items, setItems] = useState<RankingItem[]>([]);
+  const [scope, setScope] = useState<Scope>("syosetu");
+  const [period, setPeriod] = useState<RankingPeriod>("daily");
+  const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState<string | null>(null);
   const [titleKo, setTitleKo] = useState<Record<string, string>>({});
   const [translating, setTranslating] = useState(false);
 
-  const periods: { value: Period; label: string }[] = [
-    { value: "daily", label: t("ranking.daily") },
-    { value: "weekly", label: t("ranking.weekly") },
-    { value: "monthly", label: t("ranking.monthly") },
-    { value: "quarterly", label: t("ranking.quarterly") },
-  ];
+  const periods = PERIOD_BY_SCOPE[scope];
 
-  const translateTitles = useCallback(async (rankItems: RankingItem[]) => {
-    if (rankItems.length === 0) return;
+  // Auto-correct period when scope changes if current period isn't supported
+  useEffect(() => {
+    if (!periods.includes(period)) {
+      setPeriod(periods[0]);
+    }
+  }, [scope, periods, period]);
+
+  const itemKey = useCallback((it: SectionItem) => `${it.site}::${it.sourceId}`, []);
+
+  const translateTitles = useCallback(async (allItems: SectionItem[]) => {
+    if (allItems.length === 0) return;
     setTranslating(true);
     try {
+      const titles = allItems.map((i) => i.title);
       const res = await fetch("/api/ranking/translate-titles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ titles: rankItems.map((i) => i.title) }),
+        body: JSON.stringify({ titles }),
       });
       if (res.ok) {
         const data = await res.json();
         const map: Record<string, string> = {};
-        rankItems.forEach((item, idx) => {
+        allItems.forEach((item, idx) => {
           if (data.translations[idx] && data.translations[idx] !== item.title) {
-            map[item.ncode] = data.translations[idx];
+            map[itemKey(item)] = data.translations[idx];
           }
         });
         setTitleKo(map);
@@ -59,21 +87,49 @@ export default function RankingPage() {
     } finally {
       setTranslating(false);
     }
-  }, []);
+  }, [itemKey]);
 
   const fetchRanking = useCallback(
-    async (p: Period) => {
+    async (s: Scope, p: RankingPeriod) => {
       setLoading(true);
       setTitleKo({});
       try {
-        const res = await fetch(`/api/ranking?period=${p}&limit=20`);
-        if (res.ok) {
-          const data = await res.json();
-          setItems(data.items);
-          translateTitles(data.items);
+        const url = `/api/ranking?scope=${encodeURIComponent(s)}&period=${encodeURIComponent(p)}&limit=20`;
+        const res = await fetch(url);
+        if (!res.ok) {
+          setSections([]);
+          return;
         }
+        const data = await res.json();
+        let next: Section[];
+        if (Array.isArray(data.items)) {
+          // Legacy single-list path for syosetu scope.
+          next = [
+            {
+              site: "syosetu" as SourceSite,
+              status: "ok",
+              errorMessage: null,
+              items: data.items.map((i: { rank: number; ncode: string; title: string; authorName: string; totalEpisodes: number; isCompleted: boolean; sourceUrl: string; novelId: string | null }) => ({
+                rank: i.rank,
+                site: "syosetu" as SourceSite,
+                sourceId: i.ncode,
+                title: i.title,
+                authorName: i.authorName,
+                totalEpisodes: i.totalEpisodes,
+                isCompleted: i.isCompleted,
+                sourceUrl: i.sourceUrl,
+                novelId: i.novelId,
+              })),
+            },
+          ];
+        } else {
+          next = (data.sections ?? []) as Section[];
+        }
+        setSections(next);
+        const flat = next.flatMap((sec) => sec.items);
+        translateTitles(flat);
       } catch {
-        // silent
+        setSections([]);
       } finally {
         setLoading(false);
       }
@@ -82,23 +138,30 @@ export default function RankingPage() {
   );
 
   useEffect(() => {
-    fetchRanking(period);
-  }, [period, fetchRanking]);
+    fetchRanking(scope, period);
+  }, [scope, period, fetchRanking]);
 
-  async function handleRegister(ncode: string) {
-    setRegistering(ncode);
+  const handleRegister = useCallback(async (item: SectionItem) => {
+    const key = itemKey(item);
+    setRegistering(key);
     try {
       const res = await fetch("/api/novels/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: ncode }),
+        body: JSON.stringify({ input: item.sourceUrl }),
       });
-
       if (res.ok) {
         const data = await res.json();
-        setItems((prev) =>
-          prev.map((item) =>
-            item.ncode === ncode ? { ...item, novelId: data.novel.id } : item,
+        setSections((prev) =>
+          prev.map((sec) =>
+            sec.site === item.site
+              ? {
+                  ...sec,
+                  items: sec.items.map((it) =>
+                    it.sourceId === item.sourceId ? { ...it, novelId: data.novel.id } : it,
+                  ),
+                }
+              : sec,
           ),
         );
       }
@@ -107,10 +170,12 @@ export default function RankingPage() {
     } finally {
       setRegistering(null);
     }
-  }
+  }, [itemKey]);
 
-  const heroItem = items[0];
-  const restItems = items.slice(1);
+  const totalItems = useMemo(
+    () => sections.reduce((sum, s) => sum + s.items.length, 0),
+    [sections],
+  );
 
   return (
     <main className="frame-paper paper-grain flex flex-1 flex-col">
@@ -130,51 +195,104 @@ export default function RankingPage() {
           <div className="surface-card flex gap-1 rounded-full p-1">
             {periods.map((p) => (
               <button
-                key={p.value}
+                key={p}
                 type="button"
-                onClick={() => setPeriod(p.value)}
+                onClick={() => setPeriod(p)}
                 className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
-                  period === p.value
+                  period === p
                     ? "bg-deep text-accent-contrast"
                     : "text-secondary hover:bg-surface-strong"
                 }`}
               >
-                {p.label}
+                {t(`ranking.period.${p}` as TranslationKey)}
               </button>
             ))}
           </div>
         </header>
 
+        <div className="surface-card flex flex-wrap gap-1 rounded-full p-1 self-start">
+          {SCOPES.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setScope(s)}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                scope === s
+                  ? "bg-deep text-accent-contrast"
+                  : "text-secondary hover:bg-surface-strong"
+              }`}
+            >
+              {s === "sfw" || s === "all"
+                ? t(`ranking.scope.${s}` as TranslationKey)
+                : t(`source.${s}` as TranslationKey)}
+            </button>
+          ))}
+        </div>
+
         {loading ? (
           <div className="surface-card rounded-xl p-8 text-center text-sm text-muted">
             {t("ranking.loading")}
           </div>
-        ) : items.length === 0 ? (
+        ) : totalItems === 0 ? (
           <div className="surface-card rounded-xl p-8 text-center text-sm text-muted">
             {t("ranking.empty")}
           </div>
         ) : (
           <>
-            {heroItem ? (
-              <RankingHero
-                item={heroItem}
-                titleKo={titleKo[heroItem.ncode]}
-                onRegister={handleRegister}
-                registering={registering === heroItem.ncode}
-              />
-            ) : null}
+            {sections.map((section) => (
+              <section key={section.site} className="flex flex-col gap-3">
+                {sections.length > 1 ? (
+                  <div className="flex items-center gap-2 border-b border-border pb-2">
+                    <SourcePill site={section.site} variant="full" />
+                    <span className="font-mono text-[11px] text-muted">
+                      {section.items.length}
+                    </span>
+                    {section.status !== "ok" ? (
+                      <span className="font-mono text-[11px] text-warning">
+                        {section.status === "timeout"
+                          ? t("ranking.sectionTimeout")
+                          : t("ranking.sectionError")}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
 
-            <div>
-              {restItems.map((item) => (
-                <RankingRow
-                  key={item.ncode}
-                  item={item}
-                  titleKo={titleKo[item.ncode]}
-                  onRegister={handleRegister}
-                  registering={registering === item.ncode}
-                />
-              ))}
-            </div>
+                {section.items.length > 0 ? (
+                  <>
+                    {section.items[0] ? (
+                      <RankingHero
+                        item={section.items[0]}
+                        titleKo={titleKo[itemKey(section.items[0])]}
+                        onRegister={() => handleRegister(section.items[0])}
+                        registering={registering === itemKey(section.items[0])}
+                      />
+                    ) : null}
+                    <div>
+                      {section.items.slice(1).map((item) => {
+                        const key = itemKey(item);
+                        return (
+                          <RankingRow
+                            key={key}
+                            item={item}
+                            titleKo={titleKo[key]}
+                            onRegister={() => handleRegister(item)}
+                            registering={registering === key}
+                          />
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <p className="py-4 text-center text-xs text-muted">
+                    {section.status === "timeout"
+                      ? t("ranking.sectionTimeout")
+                      : section.status === "error"
+                        ? t("ranking.sectionError")
+                        : t("ranking.empty")}
+                  </p>
+                )}
+              </section>
+            ))}
 
             {translating ? (
               <p className="py-2 text-center text-xs text-muted">
