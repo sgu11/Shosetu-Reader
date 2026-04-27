@@ -298,16 +298,23 @@ export async function fetchPendingEpisodes(
 ): Promise<{ fetched: number; failed: number; total: number }> {
   const db = getDb();
 
-  // Reset rows abandoned by a crashed worker mid-fetch. Without this, rows
-  // left in `fetching` would be silently skipped by the pending filter
-  // below and require manual intervention.
+  // Reset rows abandoned by a crashed worker mid-fetch AND prior failures
+  // back to pending. Without this:
+  //   - `fetching` rows are silently skipped by the pending filter below
+  //     after a worker crash (lost forever otherwise).
+  //   - `failed` rows can never be retried via the ingest button. A user
+  //     hitting "ingest" expects the system to attempt every missing
+  //     episode again, including ones that previously errored.
+  // Permanently-broken upstream episodes (404, deleted) will still retry
+  // each ingest run, but at ≤1 req/s the cost is bounded and the failure
+  // is visible in the per-novel status overview.
   await db
     .update(episodes)
     .set({ fetchStatus: "pending", updatedAt: new Date() })
     .where(
       and(
         eq(episodes.novelId, novelId),
-        eq(episodes.fetchStatus, "fetching"),
+        sql`${episodes.fetchStatus} IN ('fetching', 'failed')`,
       ),
     );
 
