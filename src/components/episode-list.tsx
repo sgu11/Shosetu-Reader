@@ -28,8 +28,20 @@ const PAGE_SIZE = 100;
 
 export function EpisodeList({ novelId, initialEpisodes, totalCount }: Props) {
   const { t, locale } = useTranslation();
-  void novelId;
-  const episodes = initialEpisodes;
+  const [titleOverrides, setTitleOverrides] = useState<Record<string, string>>({});
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [savingTitle, setSavingTitle] = useState(false);
+
+  const episodes = useMemo(
+    () =>
+      initialEpisodes.map((ep) =>
+        titleOverrides[ep.id]
+          ? { ...ep, titleKo: titleOverrides[ep.id] }
+          : ep,
+      ),
+    [initialEpisodes, titleOverrides],
+  );
   const count = totalCount;
 
   const totalPages = Math.max(1, Math.ceil(episodes.length / PAGE_SIZE));
@@ -43,6 +55,39 @@ export function EpisodeList({ novelId, initialEpisodes, totalCount }: Props) {
     const start = page * PAGE_SIZE;
     return episodes.slice(start, start + PAGE_SIZE);
   }, [episodes, page]);
+
+  const startEditTitle = (ep: Episode) => {
+    setEditingTitleId(ep.id);
+    setDraftTitle(ep.titleKo ?? "");
+  };
+
+  const cancelEditTitle = () => {
+    setEditingTitleId(null);
+    setDraftTitle("");
+  };
+
+  const saveTitle = async (episodeId: string) => {
+    const trimmed = draftTitle.trim();
+    if (!trimmed) {
+      cancelEditTitle();
+      return;
+    }
+    setSavingTitle(true);
+    try {
+      const res = await fetch(`/api/novels/${novelId}/episode-titles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ episodeId, titleKo: trimmed }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      setTitleOverrides((prev) => ({ ...prev, [episodeId]: trimmed }));
+      cancelEditTitle();
+    } catch {
+      // Keep edit open so the user can retry without losing input
+    } finally {
+      setSavingTitle(false);
+    }
+  };
 
   if (episodes.length === 0) {
     return (
@@ -76,13 +121,71 @@ export function EpisodeList({ novelId, initialEpisodes, totalCount }: Props) {
         {visible.map((ep) => {
           const isReadable = ep.fetchStatus === "fetched";
           const isProcessing = ep.translationStatus === "processing";
+          const isEditingTitle = editingTitleId === ep.id;
+          const titleMissing =
+            locale === "ko" &&
+            !ep.titleKo &&
+            ep.titleJa != null &&
+            ep.titleJa.trim() !== "";
 
           const inner = (
             <>
               <div className="flex min-w-0 items-start gap-3">
                 <span className="text-sm text-muted">#{ep.episodeNumber}</span>
                 <div className="min-w-0 flex-1">
-                  {locale === "ko" && ep.titleKo ? (
+                  {isEditingTitle ? (
+                    <div
+                      className="flex flex-col gap-1"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                    >
+                      <input
+                        type="text"
+                        value={draftTitle}
+                        onChange={(e) => setDraftTitle(e.target.value)}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            void saveTitle(ep.id);
+                          } else if (e.key === "Escape") {
+                            cancelEditTitle();
+                          }
+                        }}
+                        className="w-full rounded border border-border bg-background px-2 py-1 text-sm focus:outline-none"
+                      />
+                      <div className="flex gap-2 text-xs">
+                        <button
+                          type="button"
+                          disabled={savingTitle}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            void saveTitle(ep.id);
+                          }}
+                          className="text-accent hover:underline"
+                        >
+                          {savingTitle ? "..." : t("glossary.save")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            cancelEditTitle();
+                          }}
+                          className="text-muted hover:underline"
+                        >
+                          {t("glossary.cancel")}
+                        </button>
+                        <span className="ml-auto truncate text-muted/60">
+                          {ep.titleJa}
+                        </span>
+                      </div>
+                    </div>
+                  ) : locale === "ko" && ep.titleKo ? (
                     <>
                       <span className="block truncate text-sm">{ep.titleKo}</span>
                       <span className="block truncate text-xs text-muted/60">{ep.titleJa}</span>
@@ -93,6 +196,21 @@ export function EpisodeList({ novelId, initialEpisodes, totalCount }: Props) {
                     </span>
                   )}
                 </div>
+                {titleMissing && !isEditingTitle && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      startEditTitle(ep);
+                    }}
+                    className="rounded px-1.5 py-0.5 text-xs text-muted hover:bg-surface-strong hover:text-foreground"
+                    title="Manual KO title override"
+                    aria-label="Edit title"
+                  >
+                    ✎
+                  </button>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 {ep.translationStatus === "available" ? (
