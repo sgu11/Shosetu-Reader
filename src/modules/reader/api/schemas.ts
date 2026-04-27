@@ -8,7 +8,7 @@ export const readerPayloadSchema = z.object({
     id: z.string().uuid(),
     titleJa: z.string(),
     titleNormalized: z.string().nullable(),
-    sourceNcode: z.string(),
+    sourceId: z.string(),
   }),
   episode: z.object({
     id: z.string().uuid(),

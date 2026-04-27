@@ -37,12 +37,12 @@ export async function getRanking(
     : await db
       .select({
         id: novels.id,
-        sourceNcode: novels.sourceNcode,
+        sourceId: novels.sourceId,
       })
       .from(novels)
-      .where(inArray(novels.sourceNcode, ncodes));
+      .where(inArray(novels.sourceId, ncodes));
 
-  const existingByNcode = new Map(existingRows.map((row) => [row.sourceNcode, row.id]));
+  const existingByNcode = new Map(existingRows.map((row) => [row.sourceId, row.id]));
 
   return ranked.map((meta, index) => ({
     rank: index + 1,
@@ -68,7 +68,7 @@ export async function registerFromRanking(
   const [existing] = await db
     .select({ id: novels.id })
     .from(novels)
-    .where(eq(novels.sourceNcode, meta.ncode))
+    .where(eq(novels.sourceId, meta.ncode))
     .limit(1);
 
   if (existing) return existing.id;
@@ -77,7 +77,7 @@ export async function registerFromRanking(
     .insert(novels)
     .values({
       sourceSite: "syosetu",
-      sourceNcode: meta.ncode,
+      sourceId: meta.ncode,
       sourceUrl: buildNovelUrl(meta.ncode),
       titleJa: meta.title,
       authorName: meta.authorName,

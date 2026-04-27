@@ -156,7 +156,7 @@ export async function getReaderPayload(
       id: novel.id,
       titleJa: novel.titleJa,
       titleNormalized: novel.titleNormalized,
-      sourceNcode: novel.sourceNcode,
+      sourceId: novel.sourceId,
     },
     episode: {
       id: episode.id,

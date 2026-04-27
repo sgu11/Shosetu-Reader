@@ -5,7 +5,7 @@ import { novelStatusOverviewSchema } from "./status-overview-schema";
 
 export const novelResponseSchema = z.object({
   id: z.string().uuid(),
-  sourceNcode: z.string(),
+  sourceId: z.string(),
   sourceUrl: z.string().url(),
   titleJa: z.string(),
   titleKo: z.string().nullable(),

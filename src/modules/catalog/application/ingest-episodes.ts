@@ -23,7 +23,7 @@ export async function discoverEpisodes(novelId: string): Promise<number> {
 
   if (!novel) throw new Error(`Novel not found: ${novelId}`);
 
-  const tocEntries = await fetchEpisodeList(novel.sourceNcode);
+  const tocEntries = await fetchEpisodeList(novel.sourceId);
   if (tocEntries.length === 0) return 0;
 
   const sourceIds = tocEntries.map((e) => String(e.episodeNumber));
@@ -110,7 +110,7 @@ export async function fetchAndPersistEpisode(episodeId: string): Promise<void> {
 
   try {
     const content = await fetchEpisodeContent(
-      novel.sourceNcode,
+      novel.sourceId,
       episode.episodeNumber,
     );
 
@@ -170,7 +170,7 @@ export async function fetchAndReconcileEpisode(
 
   try {
     const content = await fetchEpisodeContent(
-      novel.sourceNcode,
+      novel.sourceId,
       episode.episodeNumber,
     );
 

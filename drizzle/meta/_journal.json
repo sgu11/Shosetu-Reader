@@ -169,6 +169,20 @@
       "when": 1777300000000,
       "tag": "0023_translations_lang_status_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1777400000000,
+      "tag": "0024_source_enum_rename_adult_flag",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1777500000000,
+      "tag": "0025_source_composite_unique_concurrent",
+      "breakpoints": true
     }
   ]
 }

@@ -19,7 +19,7 @@ const DEMO_USER_ID = "00000000-0000-4000-a000-000000000001";
 type NovelFixture = {
   id: string;
   source_site: "syosetu";
-  source_ncode: string;
+  source_id: string;
   source_url: string;
   title_ja: string;
   title_ko: string | null;
@@ -103,7 +103,7 @@ export async function seedDemo() {
     await tx.insert(novels).values({
       id: novel.id,
       sourceSite: novel.source_site,
-      sourceNcode: novel.source_ncode,
+      sourceId: novel.source_id,
       sourceUrl: novel.source_url,
       titleJa: novel.title_ja,
       titleKo: novel.title_ko,

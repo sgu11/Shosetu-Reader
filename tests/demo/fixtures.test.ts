@@ -15,7 +15,7 @@ describe("demo fixtures", () => {
     const novel = readJson<Record<string, unknown>>("novel.json");
     expect(novel.id).toMatch(UUID_RE);
     expect(novel).toMatchObject({
-      source_ncode: expect.any(String),
+      source_id: expect.any(String),
       source_url: expect.any(String),
       title_ja: expect.any(String),
       title_ko: expect.any(String),

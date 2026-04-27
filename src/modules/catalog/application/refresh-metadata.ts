@@ -27,7 +27,7 @@ export async function refreshSubscribedNovelMetadata(
   const subscribedNovels = await db
     .selectDistinct({
       id: novels.id,
-      sourceNcode: novels.sourceNcode,
+      sourceId: novels.sourceId,
       totalEpisodes: novels.totalEpisodes,
       isCompleted: novels.isCompleted,
     })
@@ -42,7 +42,7 @@ export async function refreshSubscribedNovelMetadata(
 
   for (const novel of subscribedNovels) {
     try {
-      const metadata = await fetchNovelMetadata(novel.sourceNcode);
+      const metadata = await fetchNovelMetadata(novel.sourceId);
 
       const hasChanges =
         metadata.totalEpisodes !== novel.totalEpisodes ||
@@ -79,7 +79,7 @@ export async function refreshSubscribedNovelMetadata(
       processed++;
       logger.warn("Failed to refresh metadata", {
         novelId: novel.id,
-        ncode: novel.sourceNcode,
+        ncode: novel.sourceId,
         error: err instanceof Error ? err.message : "Unknown error",
       });
     }

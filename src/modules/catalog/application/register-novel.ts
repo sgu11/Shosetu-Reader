@@ -12,7 +12,7 @@ import { translateNovelMetadata } from "./translate-novel-metadata";
 export interface RegisterNovelResult {
   novel: {
     id: string;
-    sourceNcode: string;
+    sourceId: string;
     sourceUrl: string;
     titleJa: string;
     authorName: string | null;
@@ -43,7 +43,7 @@ async function upsertNovel(
   const existing = await db
     .select()
     .from(novels)
-    .where(eq(novels.sourceNcode, metadata.ncode))
+    .where(eq(novels.sourceId, metadata.ncode))
     .limit(1);
 
   if (existing.length > 0) {
@@ -60,7 +60,7 @@ async function upsertNovel(
         lastSourceSyncAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(novels.sourceNcode, metadata.ncode))
+      .where(eq(novels.sourceId, metadata.ncode))
       .returning();
 
     // Fire-and-forget: translate title/summary if not yet translated
@@ -74,7 +74,7 @@ async function upsertNovel(
     return {
       novel: {
         id: updated.id,
-        sourceNcode: updated.sourceNcode,
+        sourceId: updated.sourceId,
         sourceUrl: updated.sourceUrl,
         titleJa: updated.titleJa,
         authorName: updated.authorName,
@@ -90,7 +90,7 @@ async function upsertNovel(
   const [inserted] = await db
     .insert(novels)
     .values({
-      sourceNcode: metadata.ncode,
+      sourceId: metadata.ncode,
       sourceUrl,
       titleJa: metadata.title,
       authorName: metadata.authorName,
@@ -113,7 +113,7 @@ async function upsertNovel(
   return {
     novel: {
       id: inserted.id,
-      sourceNcode: inserted.sourceNcode,
+      sourceId: inserted.sourceId,
       sourceUrl: inserted.sourceUrl,
       titleJa: inserted.titleJa,
       authorName: inserted.authorName,

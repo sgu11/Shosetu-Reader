@@ -2,7 +2,12 @@ import { pgEnum } from "drizzle-orm/pg-core";
 
 // --- Source ---
 
-export const sourceSiteEnum = pgEnum("source_site", ["syosetu"]);
+export const sourceSiteEnum = pgEnum("source_site", [
+  "syosetu",
+  "nocturne",
+  "kakuyomu",
+  "alphapolis",
+]);
 
 // --- Content fetch lifecycle ---
 

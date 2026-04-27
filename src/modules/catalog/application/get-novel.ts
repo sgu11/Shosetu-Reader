@@ -45,7 +45,7 @@ export async function getNovelById(
 
   return {
     id: row.id,
-    sourceNcode: row.sourceNcode,
+    sourceId: row.sourceId,
     sourceUrl: row.sourceUrl,
     titleJa: row.titleJa,
     titleKo,

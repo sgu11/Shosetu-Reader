@@ -7,7 +7,7 @@ import { useTranslation } from "@/lib/i18n/client";
 interface RegisterResult {
   novel: {
     id: string;
-    sourceNcode: string;
+    sourceId: string;
     titleJa: string;
     authorName: string | null;
     summaryJa: string | null;
@@ -104,7 +104,7 @@ export default function RegisterPage() {
               {result.isNew ? t("register.newlyRegistered") : t("register.alreadyRegistered")}
             </span>
             <span className="code-label">
-              {result.novel.sourceNcode}
+              {result.novel.sourceId}
             </span>
           </div>
 

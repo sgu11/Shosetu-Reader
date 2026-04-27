@@ -312,7 +312,7 @@ export async function buildEpub(opts: BuildEpubOptions): Promise<{
       chapters,
       includeGlossary,
       opts.lang,
-      `urn:shosetu:${novel.sourceNcode}:${Date.now()}`,
+      `urn:shosetu:${novel.sourceId}:${Date.now()}`,
     ),
   );
   for (const c of chapters) {
@@ -324,7 +324,7 @@ export async function buildEpub(opts: BuildEpubOptions): Promise<{
 
   const buffer = await zip.generateAsync({ type: "nodebuffer" });
   const safeTitle = (novel.titleKo ?? novel.titleJa).replace(/[^\w가-힣ぁ-ゖァ-ヶ一-龯-]+/g, "_").slice(0, 80);
-  const filename = `${safeTitle || novel.sourceNcode}.epub`;
+  const filename = `${safeTitle || novel.sourceId}.epub`;
   return {
     buffer,
     filename,

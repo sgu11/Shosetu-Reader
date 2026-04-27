@@ -7,7 +7,7 @@ interface NovelHeroProps {
   novel: {
     titleJa: string;
     titleKo: string | null;
-    sourceNcode: string;
+    sourceId: string;
     authorName: string | null;
     summaryJa: string | null;
     summaryKo: string | null;
@@ -27,7 +27,7 @@ export async function NovelHero({ novelId, novel, subscribed }: NovelHeroProps) 
       <NovelCover jp={novel.titleJa} kr={novel.titleKo} width={180} height={252} />
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-3 font-mono text-[10px] uppercase tracking-wider text-muted">
-          <span>{novel.sourceNcode}</span>
+          <span>{novel.sourceId}</span>
           {novel.isCompleted != null ? (
             <span>· {novel.isCompleted ? t(locale, "novel.completed") : t(locale, "novel.ongoing")}</span>
           ) : null}

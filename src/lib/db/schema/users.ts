@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { uiLocaleEnum, contentLanguageEnum, themeEnum } from "./enums";
 
 export const users = pgTable("users", {
@@ -26,6 +26,7 @@ export const readerPreferences = pgTable("reader_preferences", {
   fontFamily: text("font_family").notNull().default("nanum-myeongjo"),
   fontWeight: text("font_weight").notNull().default("bold"),
   themeOverride: themeEnum("theme_override"),
+  adultContentEnabled: boolean("adult_content_enabled").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

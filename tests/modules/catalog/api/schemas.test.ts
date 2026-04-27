@@ -5,7 +5,7 @@ describe("novelResponseSchema", () => {
   it("accepts a novel response with status overview", () => {
     const result = novelResponseSchema.safeParse({
       id: "550e8400-e29b-41d4-a716-446655440000",
-      sourceNcode: "n1234ab",
+      sourceId: "n1234ab",
       sourceUrl: "https://ncode.syosetu.com/n1234ab/",
       titleJa: "テスト小説",
       titleKo: "테스트 소설",

@@ -53,20 +53,31 @@ try {
     const sqlFile = path.join(DRIZZLE_DIR, `${entry.tag}.sql`);
     const content = fs.readFileSync(sqlFile, "utf-8");
 
+    // Some statements (CREATE INDEX CONCURRENTLY) cannot run inside a transaction.
+    // Files may opt out via a header directive on its own line: -- migrate:no-transaction
+    const noTransaction = /^[ \t]*--[ \t]*migrate:no-transaction[ \t]*$/m.test(content);
+
     // Split on drizzle statement breakpoints
     const statements = content
       .split("--> statement-breakpoint")
       .map((s) => s.trim())
       .filter(Boolean);
 
-    console.log(`  Applying migration: ${entry.tag} (${statements.length} statements)`);
+    console.log(`  Applying migration: ${entry.tag} (${statements.length} statements${noTransaction ? ", no-transaction" : ""})`);
 
-    await sql.begin(async (tx) => {
+    if (noTransaction) {
       for (const stmt of statements) {
-        await tx.unsafe(stmt);
+        await sql.unsafe(stmt);
       }
-      await tx`INSERT INTO ${tx(MIGRATIONS_TABLE)} (hash, created_at) VALUES (${entry.tag}, ${entry.when})`;
-    });
+      await sql`INSERT INTO ${sql(MIGRATIONS_TABLE)} (hash, created_at) VALUES (${entry.tag}, ${entry.when})`;
+    } else {
+      await sql.begin(async (tx) => {
+        for (const stmt of statements) {
+          await tx.unsafe(stmt);
+        }
+        await tx`INSERT INTO ${tx(MIGRATIONS_TABLE)} (hash, created_at) VALUES (${entry.tag}, ${entry.when})`;
+      });
+    }
 
     count++;
   }
