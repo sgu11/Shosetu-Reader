@@ -32,7 +32,17 @@ interface GlossaryEntry {
 }
 
 type Category = "character" | "place" | "term" | "skill" | "honorific";
-type FilterTab = "all" | Category;
+type FilterTab = "all" | "review" | Category;
+
+const REVIEW_CONFIDENCE_MAX = 0.3;
+
+function isReviewNeeded(entry: { status: string; confidence: number | null }): boolean {
+  return (
+    entry.status === "suggested" &&
+    entry.confidence !== null &&
+    entry.confidence < REVIEW_CONFIDENCE_MAX
+  );
+}
 
 interface Props {
   novelId: string;
@@ -101,6 +111,7 @@ export function NovelGlossaryEditor({ novelId }: Props) {
   const filterTabs = useMemo(
     () => [
       { key: "all" as FilterTab, label: t("glossary.all") },
+      { key: "review" as FilterTab, label: "Review" },
       ...CATEGORIES.map((c) => ({ key: c as FilterTab, label: categoryLabel(c) })),
     ],
     [t, categoryLabel],
@@ -346,6 +357,13 @@ export function NovelGlossaryEditor({ novelId }: Props) {
 
   const filteredEntries = useMemo(() => {
     if (filterTab === "all") return entries;
+    if (filterTab === "review") {
+      // Sort lowest-confidence first so the worst guesses show up at the top
+      return entries
+        .filter(isReviewNeeded)
+        .slice()
+        .sort((a, b) => (a.confidence ?? 0) - (b.confidence ?? 0));
+    }
     return entries.filter((e) => e.category === filterTab);
   }, [entries, filterTab]);
 
@@ -360,9 +378,12 @@ export function NovelGlossaryEditor({ novelId }: Props) {
   // Per-category counts
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { all: entries.length };
+    let reviewCount = 0;
     for (const e of entries) {
       counts[e.category] = (counts[e.category] ?? 0) + 1;
+      if (isReviewNeeded(e)) reviewCount += 1;
     }
+    counts.review = reviewCount;
     return counts;
   }, [entries]);
 
@@ -454,6 +475,27 @@ export function NovelGlossaryEditor({ novelId }: Props) {
       setEditSaving(false);
     }
   }, [novelId, editingId, editTermJa, editTermKo, editCategory, editImportance, showToast, t]);
+
+  const confirmEntry = useCallback(
+    async (entryId: string) => {
+      try {
+        const res = await fetch(`/api/novels/${novelId}/glossary/entries/${entryId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "confirmed", confidence: 1 }),
+        });
+        if (!res.ok) throw new Error("Failed to confirm");
+        const data = await res.json();
+        setEntries((prev) =>
+          prev.map((e) => (e.id === entryId ? data.entry : e)),
+        );
+        showToast(t("glossary.entryUpdated"), "success");
+      } catch {
+        showToast(t("glossary.entryUpdateFailed"), "error");
+      }
+    },
+    [novelId, showToast, t],
+  );
 
   const deleteEntry = useCallback(
     async (entryId: string) => {
@@ -815,45 +857,84 @@ export function NovelGlossaryEditor({ novelId }: Props) {
                         </tr>
                       ) : (
                         /* ---- Display row ---- */
-                        <tr
-                          key={entry.id}
-                          className="border-b border-border/50 last:border-0 hover:bg-surface-strong/30 cursor-pointer"
-                          onClick={() => startEdit(entry)}
-                        >
-                          <td className="py-2 pr-2">
-                            <span
-                              className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${categoryColor(entry.category)}`}
+                        (() => {
+                          const reviewNeeded = isReviewNeeded(entry);
+                          const isSuggested = entry.status === "suggested";
+                          const rowClass = reviewNeeded
+                            ? "border-b border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/10 cursor-pointer"
+                            : "border-b border-border/50 last:border-0 hover:bg-surface-strong/30 cursor-pointer";
+                          return (
+                            <tr
+                              key={entry.id}
+                              className={rowClass}
+                              onClick={() => startEdit(entry)}
                             >
-                              {CATEGORY_I18N_KEYS[entry.category as Category]
-                                ? categoryLabel(entry.category as Category)
-                                : entry.category}
-                            </span>
-                          </td>
-                          <td className="whitespace-nowrap py-2 pr-2 font-medium text-foreground">
-                            {entry.termJa}
-                          </td>
-                          <td className="whitespace-nowrap py-2 pr-2 text-foreground">
-                            {entry.termKo}
-                          </td>
-                          <td className="hidden py-2 pr-2 text-center text-xs text-muted/60 sm:table-cell">
-                            {importanceStars(entry.importance)}
-                          </td>
-                          <td className="py-2">
-                            <div
-                              className="flex items-center gap-1"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => deleteEntry(entry.id)}
-                                className="rounded px-2 py-1 text-xs text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                                aria-label="Delete"
-                              >
-                                &times;
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                              <td className="py-2 pr-2">
+                                <span
+                                  className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${categoryColor(entry.category)}`}
+                                >
+                                  {CATEGORY_I18N_KEYS[entry.category as Category]
+                                    ? categoryLabel(entry.category as Category)
+                                    : entry.category}
+                                </span>
+                              </td>
+                              <td className="whitespace-nowrap py-2 pr-2 font-medium text-foreground">
+                                {entry.termJa}
+                              </td>
+                              <td className="whitespace-nowrap py-2 pr-2 text-foreground">
+                                <div className="flex items-center gap-2">
+                                  <span>{entry.termKo}</span>
+                                  {isSuggested && (
+                                    <span
+                                      className={`text-[10px] ${reviewNeeded ? "text-amber-400" : "text-muted/50"}`}
+                                      title={
+                                        entry.confidence != null
+                                          ? `confidence ${entry.confidence.toFixed(2)}`
+                                          : "suggested"
+                                      }
+                                    >
+                                      {reviewNeeded ? "⚠" : "•"}
+                                      {entry.confidence != null && (
+                                        <span className="ml-0.5">
+                                          {entry.confidence.toFixed(1)}
+                                        </span>
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="hidden py-2 pr-2 text-center text-xs text-muted/60 sm:table-cell">
+                                {importanceStars(entry.importance)}
+                              </td>
+                              <td className="py-2">
+                                <div
+                                  className="flex items-center gap-1"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {isSuggested && (
+                                    <button
+                                      type="button"
+                                      onClick={() => confirmEntry(entry.id)}
+                                      className="rounded px-2 py-1 text-xs text-emerald-500 hover:bg-emerald-500/10 transition-colors"
+                                      aria-label="Confirm"
+                                      title="Confirm — keep this entry"
+                                    >
+                                      ✓
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => deleteEntry(entry.id)}
+                                    className="rounded px-2 py-1 text-xs text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                    aria-label="Delete"
+                                  >
+                                    &times;
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })()
                       ),
                     )}
                   </tbody>
