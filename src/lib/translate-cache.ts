@@ -6,7 +6,15 @@ import { logger } from "@/lib/logger";
 import { recordOpenRouterError, recordOpenRouterUsage } from "@/lib/ops-metrics";
 import { estimateCost } from "@/modules/translation/application/cost-estimation";
 
-const BATCH_SIZE = 50;
+// 50 titles × 4096 max_tokens led to silent output truncation on novels
+// where titles include character bracket annotations (e.g.
+// "再会のドラゴン　　　【ライラ・ジャンヌ】"). The numbered-line parser
+// then returned the original JA for whatever the LLM dropped, and
+// translateTexts skipped those from the cache (ko === ja branch).
+// 25 batches × 4096 tokens leaves comfortable headroom for any title
+// length we've seen in the wild.
+const BATCH_SIZE = 25;
+const MAX_RESPONSE_TOKENS = 4096;
 const BATCH_CONCURRENCY = 3;
 const NUMBER_ONLY = /^\d+$/;
 // Hard ceiling on consecutive batch failures within a single translateTexts
@@ -150,7 +158,7 @@ async function translateBatch(texts: string[]): Promise<string[]> {
             },
           ],
           temperature: 0.3,
-          max_tokens: 4096,
+          max_tokens: MAX_RESPONSE_TOKENS,
         }),
       });
     } catch (err) {
@@ -185,7 +193,10 @@ async function translateBatch(texts: string[]): Promise<string[]> {
       return texts;
     }
 
-    let data: { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number } };
+    let data: {
+      choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number };
+    };
     try {
       data = await res.json();
     } catch (err) {
@@ -195,6 +206,7 @@ async function translateBatch(texts: string[]): Promise<string[]> {
       return texts;
     }
     const content: string = data.choices?.[0]?.message?.content ?? "";
+    const finishReason = data.choices?.[0]?.finish_reason;
     const inputTokens = data.usage?.prompt_tokens;
     const outputTokens = data.usage?.completion_tokens;
 
@@ -211,10 +223,22 @@ async function translateBatch(texts: string[]): Promise<string[]> {
 
     const translated: Record<number, string> = {};
     for (const line of content.split("\n")) {
-      const match = line.match(/^(\d+)\.\s*(.+)/);
+      // Accept "1.", "1)", "1:" or "1-" as separator since LLMs vary.
+      const match = line.match(/^\s*(\d+)\s*[.):\-]\s*(.+)/);
       if (match) {
         translated[parseInt(match[1], 10) - 1] = match[2].trim();
       }
+    }
+
+    const missingCount = texts.length - Object.keys(translated).length;
+    if (missingCount > 0) {
+      logger.warn("Title batch parse incomplete", {
+        batchSize: texts.length,
+        parsed: Object.keys(translated).length,
+        missing: missingCount,
+        finishReason,
+        outputTokens,
+      });
     }
 
     return texts.map((original, i) => translated[i] ?? original);
