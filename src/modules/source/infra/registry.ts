@@ -12,6 +12,7 @@ import type { SourceAdapter, SourceSite } from "../domain/source-adapter";
 import { syosetuAdapter } from "./syosetu-adapter";
 import { nocturneAdapter } from "./nocturne-adapter";
 import { kakuyomuAdapter } from "./kakuyomu-adapter";
+import { alphapolisAdapter } from "./alphapolis-adapter";
 
 class HostBucket {
   private chain: Promise<unknown> = Promise.resolve();
@@ -49,11 +50,13 @@ function withRateLimit(adapter: SourceAdapter, bucket: HostBucket): SourceAdapte
 // upstream sees ≤1 req/s across the family even when both adapters are busy.
 const SYOSETU_FAMILY_BUCKET = new HostBucket(1000);
 const KAKUYOMU_BUCKET = new HostBucket(2000);
+const ALPHAPOLIS_BUCKET = new HostBucket(1500);
 
 const adapters: Partial<Record<SourceSite, SourceAdapter>> = {
   syosetu: withRateLimit(syosetuAdapter, SYOSETU_FAMILY_BUCKET),
   nocturne: withRateLimit(nocturneAdapter, SYOSETU_FAMILY_BUCKET),
   kakuyomu: withRateLimit(kakuyomuAdapter, KAKUYOMU_BUCKET),
+  alphapolis: withRateLimit(alphapolisAdapter, ALPHAPOLIS_BUCKET),
 };
 
 export function getAdapter(site: SourceSite): SourceAdapter {

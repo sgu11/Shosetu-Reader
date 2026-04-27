@@ -20,12 +20,19 @@ describe("source registry", () => {
     expect(adapter.isAdult).toBe(false);
   });
 
-  it("throws for sites that are not yet registered", () => {
-    expect(() => getAdapter("alphapolis")).toThrow(/not implemented/i);
+  it("returns the alphapolis adapter for site=alphapolis", () => {
+    const adapter = getAdapter("alphapolis");
+    expect(adapter.site).toBe("alphapolis");
+    expect(adapter.supportedPeriods).toEqual(["hot"]);
   });
 
-  it("lists only enabled sites", () => {
-    expect(listEnabledSites()).toEqual(["syosetu", "nocturne", "kakuyomu"]);
+  it("lists every enabled site", () => {
+    expect(listEnabledSites()).toEqual([
+      "syosetu",
+      "nocturne",
+      "kakuyomu",
+      "alphapolis",
+    ]);
   });
 });
 
