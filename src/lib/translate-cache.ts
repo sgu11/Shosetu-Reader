@@ -137,7 +137,11 @@ async function translateBatch(texts: string[]): Promise<string[]> {
     try {
       res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
-        signal: AbortSignal.timeout(30_000),
+        // 30s was too tight under BATCH_CONCURRENCY=3: when OpenRouter
+        // queued our requests we'd see all 3 hit AbortSignal at once
+        // and the whole window of 75 titles would fall back to the
+        // original JA. 60s gives the upstream room to drain.
+        signal: AbortSignal.timeout(60_000),
         headers: {
           Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
