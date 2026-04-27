@@ -9,6 +9,7 @@ import {
   reingestNovelByChecksum,
 } from "@/modules/catalog/application/ingest-episodes";
 import { refreshSubscribedNovelMetadata } from "@/modules/catalog/application/refresh-metadata";
+import { bootstrapGlossary } from "@/modules/translation/application/bootstrap-glossary";
 import { extractGlossaryTerms, type ExtractGlossaryPayload } from "@/modules/translation/application/extract-glossary";
 import { generateGlossary } from "@/modules/translation/application/generate-glossary";
 import { refreshGlossary, type GlossaryRefreshPayload } from "@/modules/translation/application/refresh-glossary";
@@ -50,6 +51,12 @@ export interface GlossaryGeneratePayload {
   modelName?: string;
 }
 
+export interface GlossaryBootstrapPayload {
+  novelId: string;
+  modelName?: string;
+  sampleSize?: number;
+}
+
 type JobHandler<TPayload = unknown> = (
   payload: TPayload,
   context: JobExecutionContext<TPayload>,
@@ -64,6 +71,7 @@ const jobHandlers: {
   "glossary.generate": handleGlossaryGenerate as JobHandler<unknown>,
   "glossary.extract": handleGlossaryExtract as JobHandler<unknown>,
   "glossary.refresh": handleGlossaryRefresh as JobHandler<unknown>,
+  "glossary.bootstrap": handleGlossaryBootstrap as JobHandler<unknown>,
   "translation.bulk-translate-all": handleBulkTranslateAll as JobHandler<unknown>,
   "translation.episode": handleEpisodeTranslation as JobHandler<unknown>,
   "translation.session-advance": handleSessionAdvance as JobHandler<unknown>,
@@ -270,6 +278,35 @@ async function handleGlossaryRefresh(
   return {
     stage: "completed",
     ...result,
+  };
+}
+
+async function handleGlossaryBootstrap(
+  payload: GlossaryBootstrapPayload,
+  context: JobExecutionContext<GlossaryBootstrapPayload>,
+) {
+  await context.updateProgress({
+    stage: "bootstrapping",
+    processed: 0,
+    total: 1,
+  });
+
+  const result = await bootstrapGlossary(
+    payload.novelId,
+    payload.modelName,
+    payload.sampleSize,
+  );
+
+  return {
+    stage: "completed",
+    processed: 1,
+    total: 1,
+    modelName: result.modelName,
+    episodeCount: result.episodeCount,
+    candidateCount: result.candidateCount,
+    entriesImported: result.entriesImported,
+    entriesSkipped: result.entriesSkipped,
+    costUsd: result.costUsd,
   };
 }
 

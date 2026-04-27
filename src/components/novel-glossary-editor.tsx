@@ -121,6 +121,10 @@ export function NovelGlossaryEditor({ novelId }: Props) {
   const [newCategory, setNewCategory] = useState<Category>("character");
   const [adding, setAdding] = useState(false);
 
+  // Bootstrap (cold-start glossary from JA-only morph mining)
+  const [bootstrapping, setBootstrapping] = useState(false);
+  const [bootstrapJobId, setBootstrapJobId] = useState<string | null>(null);
+
   // Inline editing
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTermJa, setEditTermJa] = useState("");
@@ -487,6 +491,76 @@ export function NovelGlossaryEditor({ novelId }: Props) {
     }
   }, [novelId, glossary, showToast, t]);
 
+  const bootstrapEntries = useCallback(async () => {
+    setBootstrapping(true);
+    try {
+      const res = await fetch(`/api/novels/${novelId}/glossary/bootstrap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error ?? "Bootstrap failed", "error");
+        setBootstrapping(false);
+        return;
+      }
+      if (typeof data.jobId === "string") {
+        setBootstrapJobId(data.jobId);
+      } else {
+        setBootstrapping(false);
+      }
+    } catch {
+      showToast(t("glossary.networkError"), "error");
+      setBootstrapping(false);
+    }
+  }, [novelId, showToast, t]);
+
+  useEffect(() => {
+    if (!bootstrapJobId) return;
+    let cancelled = false;
+
+    async function pollJob() {
+      try {
+        const res = await fetch(`/api/jobs/${bootstrapJobId}`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (data.status === "completed") {
+          setBootstrapping(false);
+          setBootstrapJobId(null);
+          await loadEntries();
+          const imported = data.result?.entriesImported ?? 0;
+          showToast(
+            imported > 0
+              ? t("glossary.generatedWithEntries", { count: imported })
+              : t("glossary.generated"),
+            "success",
+          );
+          return;
+        }
+        if (data.status === "failed") {
+          setBootstrapping(false);
+          setBootstrapJobId(null);
+          showToast(data.result?.errorMessage ?? "Bootstrap failed", "error");
+        }
+      } catch {
+        // ignore transient
+      }
+    }
+
+    void pollJob();
+    const interval = window.setInterval(() => {
+      if (document.visibilityState !== "visible" || cancelled) return;
+      void pollJob();
+    }, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [bootstrapJobId, loadEntries, showToast, t]);
+
   const generateGlossary = useCallback(async () => {
     setGenerating(true);
     try {
@@ -626,9 +700,24 @@ export function NovelGlossaryEditor({ novelId }: Props) {
             {entriesLoading ? (
               <p className="py-4 text-center text-xs text-muted">{t("glossary.loading")}</p>
             ) : filteredEntries.length === 0 ? (
-              <p className="py-4 text-center text-xs text-muted">
-                {t("glossary.noEntries")}
-              </p>
+              <div className="space-y-3 py-6 text-center">
+                <p className="text-xs text-muted">{t("glossary.noEntries")}</p>
+                <button
+                  type="button"
+                  onClick={bootstrapEntries}
+                  disabled={bootstrapping}
+                  className="btn-pill btn-secondary text-xs"
+                >
+                  {bootstrapping
+                    ? t("glossary.generating")
+                    : "Bootstrap from JA"}
+                </button>
+                <p className="mx-auto max-w-md text-xs text-muted/60">
+                  Mines proper nouns + named entities from the source text and
+                  asks the LLM to translate them. Inserted as suggested
+                  entries — review and confirm what you want to keep.
+                </p>
+              </div>
             ) : (
               <>
                 <table className="w-full text-sm">

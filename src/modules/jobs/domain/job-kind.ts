@@ -5,6 +5,7 @@ export const jobKinds = [
   "glossary.generate",
   "glossary.extract",
   "glossary.refresh",
+  "glossary.bootstrap",
   "translation.bulk-translate-all",
   "translation.episode",
   "translation.session-advance",
