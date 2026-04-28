@@ -17,7 +17,7 @@ export async function GlossaryDrawer({ entries }: Props) {
   const locale = await getLocale();
 
   return (
-    <aside data-glossary-drawer className="self-start lg:sticky lg:top-5">
+    <aside data-glossary-drawer className="self-start">
       <div className="rounded-lg border border-border bg-surface p-5">
         <Eyebrow>{t(locale, "reader.glossaryHeading")}</Eyebrow>
         {entries.length === 0 ? (
