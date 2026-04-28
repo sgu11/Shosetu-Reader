@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { NovelCover } from "@/components/novel-cover";
-import { SourcePill } from "@/components/source-pill";
+import { R18Pill, SourcePill } from "@/components/source-pill";
 import { useTranslation } from "@/lib/i18n/client";
 import type { SourceSite } from "@/modules/source/domain/source-adapter";
 
@@ -53,6 +53,7 @@ export function RankingHero({ item, titleKo, onRegister, registering }: Props) {
 
         <div className="flex flex-wrap items-center gap-2">
           <SourcePill site={item.site} variant="full" />
+          {item.site === "nocturne" ? <R18Pill /> : null}
           <span className="text-[12px] text-secondary">{item.authorName}</span>
         </div>
 

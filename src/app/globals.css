@@ -234,6 +234,71 @@ a {
   max-width: var(--reader-content-width);
 }
 
+/* Status dot — pulses when serial; static when completed. */
+.status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 5px;
+}
+.status-dot.completed { background: var(--ink-400); }
+.status-dot.serial { background: var(--accent); animation: status-pulse 2.4s infinite ease-in-out; }
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* Source tab swatch — colored chip in inactive tabs */
+.source-swatch {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Section header — pill + count + meta line in editorial mono */
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 38px 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.section-header-row h2 {
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-weight: 600;
+  font-size: 18px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  letter-spacing: 0;
+  color: var(--foreground);
+}
+.section-header-row h2 .count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  font-style: normal;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.section-header-row .meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
 /* Bilingual paragraph pair — KO sans primary over JA jp-serif secondary
    with hairline left rule on the JA line. Used by reader's KO·JA mode. */
 .para-pair {

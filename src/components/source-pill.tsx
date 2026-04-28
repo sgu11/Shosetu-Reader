@@ -1,5 +1,21 @@
 import type { SourceSite } from "@/modules/source/domain/source-adapter";
 
+export function R18Pill({ className }: { className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-[4px] border px-1.5 py-[3px] font-mono text-[10px] font-semibold tracking-wider ${className ?? ""}`}
+      style={{
+        color: "var(--src-nocturne)",
+        borderColor: "var(--src-nocturne-tint)",
+        background: "transparent",
+      }}
+      aria-label="Adult content"
+    >
+      R-18
+    </span>
+  );
+}
+
 interface SiteMeta {
   short: string;
   full: string;

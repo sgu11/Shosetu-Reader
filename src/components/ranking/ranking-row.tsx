@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { NovelCover } from "@/components/novel-cover";
-import { SourcePill } from "@/components/source-pill";
+import { R18Pill, SourcePill } from "@/components/source-pill";
 import { useTranslation } from "@/lib/i18n/client";
 import type { SourceSite } from "@/modules/source/domain/source-adapter";
 
@@ -44,6 +44,7 @@ export function RankingRow({ item, titleKo, onRegister, registering }: Props) {
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <SourcePill site={item.site} />
+          {item.site === "nocturne" ? <R18Pill /> : null}
         </div>
         <div className="mt-1 flex flex-col gap-[2px] min-w-0">
           <span className="truncate text-[14px] font-medium leading-tight tracking-tight text-foreground">
@@ -55,8 +56,14 @@ export function RankingRow({ item, titleKo, onRegister, registering }: Props) {
             </span>
           ) : null}
         </div>
-        <div className="mt-1 truncate font-mono text-[10px] uppercase tracking-wider text-muted">
-          {item.authorName}
+        <div className="mt-1 flex items-center truncate font-mono text-[10px] uppercase tracking-wider text-muted">
+          {item.isCompleted != null ? (
+            <span
+              className={`status-dot ${item.isCompleted ? "completed" : "serial"}`}
+              aria-hidden
+            />
+          ) : null}
+          <span>{item.authorName}</span>
           {item.isCompleted != null ? (
             <>
               <span className="mx-1.5 text-border-strong">/</span>

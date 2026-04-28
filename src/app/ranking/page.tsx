@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Eyebrow } from "@/components/eyebrow";
 import { RankingHero } from "@/components/ranking/ranking-hero";
 import { RankingRow } from "@/components/ranking/ranking-row";
-import { SourcePill } from "@/components/source-pill";
+import { R18Pill, SourcePill } from "@/components/source-pill";
 import { useTranslation } from "@/lib/i18n/client";
 import type { TranslationKey } from "@/lib/i18n";
 import type { RankingPeriod, SourceSite } from "@/modules/source/domain/source-adapter";
@@ -211,22 +211,33 @@ export default function RankingPage() {
         </header>
 
         <div className="surface-card flex flex-wrap gap-1 rounded-full p-1 self-start">
-          {SCOPES.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setScope(s)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                scope === s
-                  ? "bg-deep text-accent-contrast"
-                  : "text-secondary hover:bg-surface-strong"
-              }`}
-            >
-              {s === "sfw" || s === "all"
-                ? t(`ranking.scope.${s}` as TranslationKey)
-                : t(`source.${s}` as TranslationKey)}
-            </button>
-          ))}
+          {SCOPES.map((s) => {
+            const isSiteScope = s !== "sfw" && s !== "all";
+            const swatchColor = isSiteScope ? `var(--src-${s})` : undefined;
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setScope(s)}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  scope === s
+                    ? "bg-deep text-accent-contrast"
+                    : "text-secondary hover:bg-surface-strong"
+                }`}
+              >
+                {isSiteScope && scope !== s ? (
+                  <span
+                    aria-hidden
+                    className="source-swatch"
+                    style={{ color: swatchColor }}
+                  />
+                ) : null}
+                {s === "sfw" || s === "all"
+                  ? t(`ranking.scope.${s}` as TranslationKey)
+                  : t(`source.${s}` as TranslationKey)}
+              </button>
+            );
+          })}
         </div>
 
         {loading ? (
@@ -242,18 +253,26 @@ export default function RankingPage() {
             {sections.map((section) => (
               <section key={section.site} className="flex flex-col gap-3">
                 {sections.length > 1 ? (
-                  <div className="flex items-center gap-2 border-b border-border pb-2">
-                    <SourcePill site={section.site} variant="full" />
-                    <span className="font-mono text-[11px] text-muted">
-                      {section.items.length}
-                    </span>
-                    {section.status !== "ok" ? (
-                      <span className="font-mono text-[11px] text-warning">
-                        {section.status === "timeout"
+                  <div className="section-header-row">
+                    <h2>
+                      <SourcePill site={section.site} variant="full" />
+                      {section.site === "nocturne" ? <R18Pill /> : null}
+                      <span className="count">
+                        TOP {section.items.length} ·{" "}
+                        {section.status === "ok"
+                          ? "OK"
+                          : section.status === "timeout"
+                            ? "TIMEOUT"
+                            : "ERROR"}
+                      </span>
+                    </h2>
+                    <div className="meta">
+                      {section.status === "ok"
+                        ? t(`source.${section.site}` as TranslationKey)
+                        : section.status === "timeout"
                           ? t("ranking.sectionTimeout")
                           : t("ranking.sectionError")}
-                      </span>
-                    ) : null}
+                    </div>
                   </div>
                 ) : null}
 
