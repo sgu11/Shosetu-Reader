@@ -1,16 +1,29 @@
 # Progress
 
-Last updated: 2026-04-28
+Last updated: 2026-04-28 (post-DeepSeek-best-practices + layout-v2 hi-fi pass)
 
 ## Current Snapshot
 
 - Product status: V1–V4 implemented; V5 substantially shipped (multi-source
   adapters, EPUB export, quality dashboards, cold-start glossary, big-novel
   safeguards, editorial × cozy paper UI). Remaining V5 work: PWA/offline
-  (V5.7), favorite models (V5.9). SSE foundation landed for episode
-  translation events.
-- Repo shape: `51` API route files, `50` shared components, `10` domain
-  modules, `27` SQL migrations, and `29` Vitest files.
+  (V5.7), favorite models (V5.9), checksum-aware re-ingest (V5.3), novel-
+  detail SSE.
+- Layout-v2 hi-fi design pass shipped (phases 1–9): typographic masthead
+  with KO/EN nav doublets, source-pill chips, KR-primary ranking, bilingual
+  KO·JA reader (.para-pair) with hairline rule, 3-pane reader (TOC ±10
+  episodes + body + glossary drawer), sticky settings rail with per-workload
+  model picker, R-18 pill on Nocturne, register live-detect preview, library
+  card inline actions, brand-dot N badge.
+- DeepSeek V4 best-practice routing live: per-workload reasoning effort,
+  provider pinning, prefix-stable extract-glossary system prompt, deferred
+  glossary mutation during active sessions, paragraph-strict default
+  prompt (synthesised from DeepSeek V4 Pro draft + Claude review pass).
+- Stop button per novel halts queued background work — cancels active
+  session, marks queued job_runs failed, marks queued/processing
+  translations failed.
+- Repo shape: `52` API route files, `52` shared components, `10` domain
+  modules, `28` SQL migrations, and `29` Vitest files.
 - Multi-source live: Syosetu, Nocturne (R-18), Kakuyomu, AlphaPolis behind
   one `SourceAdapter` registry with adult gate, per-section timeout, and
   scheduled live-fetch canary.
@@ -163,7 +176,7 @@ Reference: `docs/claude-design/`. Adult filtering goes through
 | Item | Status | Notes |
 |---|---|---|
 | V5.1 Quality Warnings Dashboard | Shipped | `quality/summary` + `quality/list` endpoints; admin views + public summary |
-| V5.2 Incremental Glossary Refresh | Shipped | `/glossary/refresh` + sampling across translated range |
+| V5.2 Incremental Glossary Refresh | Shipped | `/glossary/refresh` + sampling; auto-fired at session-end for cache stability |
 | V5.3 Selective Re-ingest by Checksum | Partial | `reingest-all` exists; full checksum skip not yet wired |
 | V5.4 Reading Statistics Page | Shipped | `/stats` route + `/api/stats` |
 | V5.5 SSE Live Updates | Foundation | Episode translation `events` SSE wired; novel-detail SSE pending |
@@ -171,7 +184,13 @@ Reference: `docs/claude-design/`. Adult filtering goes through
 | V5.7 PWA / Offline | Foundation | Service worker registered, offline badge; episode caching pending |
 | V5.8 EPUB Export | Shipped | Streaming JSZip via `Readable.toWeb`, capped at MAX_EXPORT_EPISODES |
 | V5.9 Favorite Models | Not started | |
-| V5.10 Glossary Prompt Cap 200 | Shipped | env-overridable |
+| V5.10 Glossary Prompt Cap 200 | Shipped | bumped 200 → 500 alongside V4 1M context |
+| V5.11 Multi-source adapters | Shipped | Phases 1–7 of `claude-design/` plan, 4 sites live |
+| V5.12 Layout-v2 hi-fi pass | Shipped | Phases 1–9; outstanding polish in `docs/layout/layout-v2/TODO.md` |
+| V5.13 DeepSeek V4 cache + reasoning | Shipped | Per-workload routing, prefix-stable prompts, cache telemetry |
+| V5.14 Per-workload model UI | Shipped | Settings → Translation, JSONB column, env layered fallback |
+| V5.15 Stop button | Shipped | Per-novel `cancelNovelWork` + UI banners |
+| V5.16 Paragraph-strict default prompt | Shipped | Synthesised from DeepSeek Pro draft + Claude review |
 
 ## Multi-Source Architecture (V5 milestone)
 
@@ -248,6 +267,25 @@ For 1000+ episode novels:
 
 ## UI / Visual Pass
 
+### Layout-v2 hi-fi (phases 1–9, commits 4fd6c5c..a6a6907)
+
+| Phase | Commit | What |
+|---|---|---|
+| 1 | `4fd6c5c` | SourcePill tinted bg + glyph chip; NovelCover typographic block; KR-primary RankingRow/Hero |
+| 2 | `85be001` | Bilingual KO·JA reader (`.para-pair`) — JA/KO/KO·JA tri-toggle |
+| 3 | `733e7bb` | Typographic masthead — 52px `narou / reader` wordmark + KO/EN nav doublets |
+| 4 | `4ecf0c2` | Ranking depth — R-18 pill, status pulse dot, section-header meta, source swatches |
+| 5 | `bcae459` | Register paste flow — live detect, preview card, format grid, recent list |
+| 6 | `a12aa94` | Reader 3-pane — TOC sidebar (±10 episodes), novel KO title, crumb refresh |
+| 7 | `c371eb4` | Settings sticky rail, theme cards, stepper trio, font-stack picker |
+| 8 | `f2376be` | Library card KO+JA stack + inline sync/continue actions |
+| 9 | `a6a6907` | Floating brand-dot N badge |
+
+Outstanding polish in `docs/layout/layout-v2/TODO.md` (rank delta history,
+section last-fetched meta, EPUB URN footnote, holding-streak eyebrow).
+
+### Earlier visual passes
+
 - **Editorial × cozy paper redesign** (commit c9f3281) — paper / sepia /
   night themes via `data-theme` selector. `frame-paper` and
   `frame-night` wrappers; paper-grain and night-grain texture layers;
@@ -261,6 +299,44 @@ For 1000+ episode novels:
   `[data-glossary="hide"]` collapses the drawer column.
 - **Manual KO title override** (commit 208b53a) — per-episode KO title
   upsert via `title_translation_cache` for content-safety-refused titles.
+
+## DeepSeek V4 Best-Practice Routing (commits 792c6db, 99201e3, 03d00c0, 70cc192)
+
+- Per-workload model + reasoning + max-tokens overrides exposed via env
+  (`OPENROUTER_${WORKLOAD}_MODEL`, `OPENROUTER_REASONING_${WORKLOAD}`,
+  `OPENROUTER_MAX_TOKENS_${WORKLOAD}`) and per-user via Settings →
+  Translation (JSONB `translation_settings.workload_overrides`).
+- `resolveWorkloadProfile(workload)` returns `{ modelName, reasoning,
+  maxTokens }` — single source of truth, layered as user override → env
+  override → defaults table.
+- Provider pin: `OPENROUTER_PROVIDER_PIN` defaults to `DeepSeek` for
+  `deepseek/*` so OpenRouter doesn't route off the KV-cache domain.
+- Cache + reasoning telemetry: `recordOpenRouterUsage` carries
+  `cacheHitTokens`, `cacheMissTokens`, `reasoningTokens` (DeepSeek
+  `prompt_cache_hit_tokens` + OpenAI `completion_tokens_details`).
+- Prefix-stable `extract-glossary` system prompt — confirmed/suggested/
+  rejected lists moved to system message, sorted lexicographically. Per-
+  episode source/translation in user message. Recency-windowing dropped
+  (it shifted the prefix every episode).
+- Deferred glossary mutation during active sessions: `extract-glossary`
+  short-circuits when an active translation_session exists; one
+  `glossary.refresh` job enqueued at session-end consolidates the deferred
+  information across the full range.
+- Default global prompt rewritten paragraph-strict (DeepSeek V4 Pro draft +
+  Claude review). Paragraph-structure section runs first with strongest
+  language so the bilingual `.para-pair` zip can't be broken.
+
+## Stop Button — Halt Queued Background Work (commit e8b0060)
+
+- `cancelNovelWork(novelId)` cancels active translation_session, marks
+  queued `job_runs` as failed with `cancelled by user`, marks queued/
+  processing `translations` rows as failed.
+- `POST /api/novels/[novelId]/cancel` route, rate-limited 10/min.
+- UI: Stop button on `NovelJobRefresh` banner + inline Stop chip in
+  `NovelLiveSection` when episode-level work runs without a `job_run` row.
+- Currently-running worker tasks aren't aborted — runtime has no in-flight
+  cancellation hook. They finish their current step but no further work
+  enqueues.
 
 ## Key Implementation Details
 
@@ -284,7 +360,7 @@ For 1000+ episode novels:
 
 - `pnpm typecheck` passes
 - `pnpm test` passes: `192/192` Vitest tests across `29` files
-  (last green: commit `c72f8bd`, 2026-04-28)
+  (last green: commit `70cc192`, 2026-04-28)
 - `pnpm build` passes
 - `pnpm canary` exists for live-fetch drift detection (cron-driven)
 - Browser smoke coverage in `tests/browser/smoke.spec.ts`
