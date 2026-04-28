@@ -8,9 +8,13 @@ import {
   novelGlossaries,
   novelGlossaryEntries,
 } from "@/lib/db/schema";
-import { env, resolveModel } from "@/lib/env";
+import { buildOpenRouterRoutingBody, env, resolveModel } from "@/lib/env";
 import { logger } from "@/lib/logger";
-import { recordOpenRouterError, recordOpenRouterUsage } from "@/lib/ops-metrics";
+import {
+  extractUsageTelemetry,
+  recordOpenRouterError,
+  recordOpenRouterUsage,
+} from "@/lib/ops-metrics";
 import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
 import { getJobQueue } from "@/modules/jobs/application/job-queue";
 import { SYSTEM_OWNER_USER_ID } from "../domain/constants";
@@ -149,11 +153,27 @@ export async function advanceSession(
   const db = getDb();
 
   if (payload.currentIndex >= payload.episodeIds.length) {
-    // All episodes done — mark session complete
+    // All episodes done — mark session complete and run a deferred
+    // glossary refresh. Per-episode extract was skipped during this
+    // session to keep the prompt prefix stable for cache hits; refresh
+    // catches up across the full session range with a single LLM call.
     await db
       .update(translationSessions)
       .set({ status: "completed", updatedAt: new Date() })
       .where(eq(translationSessions.id, payload.sessionId));
+    try {
+      const jobQueue = getJobQueue();
+      await jobQueue.enqueue(
+        "glossary.refresh",
+        { novelId: payload.novelId },
+        { entityType: "novel", entityId: payload.novelId },
+      );
+    } catch (err) {
+      logger.warn("Failed to enqueue session-end glossary refresh", {
+        sessionId: payload.sessionId,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
     return;
   }
 
@@ -529,6 +549,7 @@ Output ONLY the summary text, no headers or labels.`;
         ],
         temperature: 0.2,
         max_tokens: 1024,
+        ...buildOpenRouterRoutingBody("summary", summaryModel),
       }),
     });
 
@@ -552,11 +573,15 @@ Output ONLY the summary text, no headers or labels.`;
           summaryInputTokens,
           summaryOutputTokens,
         ) ?? 0;
+        const telemetry = extractUsageTelemetry(data.usage);
         await recordOpenRouterUsage({
           operation: "translation.session-summary",
           modelName: summaryModel,
           inputTokens: summaryInputTokens,
           outputTokens: summaryOutputTokens,
+          cacheHitTokens: telemetry.cacheHitTokens,
+          cacheMissTokens: telemetry.cacheMissTokens,
+          reasoningTokens: telemetry.reasoningTokens,
           costUsd: summaryCostUsd,
         });
       }

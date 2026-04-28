@@ -107,33 +107,76 @@ export async function recordOpenRouterUsage(input: {
   modelName: string;
   inputTokens?: number | null;
   outputTokens?: number | null;
+  /** Tokens served from provider KV-cache (DeepSeek prompt_cache_hit_tokens). */
+  cacheHitTokens?: number | null;
+  /** Tokens that paid full cache-miss rate (prompt_cache_miss_tokens). */
+  cacheMissTokens?: number | null;
+  /** Reasoning tokens billed at output rate (DeepSeek thinking output). */
+  reasoningTokens?: number | null;
   costUsd?: number | null;
 }) {
-  await incrementMetric("openrouter.usage.count", 1, {
+  const tags = {
     operation: input.operation,
     model: input.modelName,
-  });
+  };
+
+  await incrementMetric("openrouter.usage.count", 1, tags);
 
   if (input.inputTokens != null) {
-    await incrementMetric("openrouter.usage.input_tokens", input.inputTokens, {
-      operation: input.operation,
-      model: input.modelName,
-    });
+    await incrementMetric("openrouter.usage.input_tokens", input.inputTokens, tags);
   }
 
   if (input.outputTokens != null) {
-    await incrementMetric("openrouter.usage.output_tokens", input.outputTokens, {
-      operation: input.operation,
-      model: input.modelName,
-    });
+    await incrementMetric("openrouter.usage.output_tokens", input.outputTokens, tags);
+  }
+
+  if (input.cacheHitTokens != null && input.cacheHitTokens > 0) {
+    await incrementMetric("openrouter.usage.cache_hit_tokens", input.cacheHitTokens, tags);
+  }
+
+  if (input.cacheMissTokens != null && input.cacheMissTokens > 0) {
+    await incrementMetric("openrouter.usage.cache_miss_tokens", input.cacheMissTokens, tags);
+  }
+
+  if (input.reasoningTokens != null && input.reasoningTokens > 0) {
+    await incrementMetric("openrouter.usage.reasoning_tokens", input.reasoningTokens, tags);
   }
 
   if (input.costUsd != null) {
-    await incrementMetric("openrouter.usage.cost_usd", input.costUsd, {
-      operation: input.operation,
-      model: input.modelName,
-    });
+    await incrementMetric("openrouter.usage.cost_usd", input.costUsd, tags);
   }
+}
+
+/**
+ * Pull provider-specific cache + reasoning telemetry out of an OpenRouter
+ * `data.usage` object. DeepSeek surfaces `prompt_cache_hit_tokens` /
+ * `prompt_cache_miss_tokens`; reasoning models report
+ * `completion_tokens_details.reasoning_tokens` per OpenAI conventions.
+ */
+export function extractUsageTelemetry(
+  usage: Record<string, unknown> | null | undefined,
+): {
+  cacheHitTokens: number | null;
+  cacheMissTokens: number | null;
+  reasoningTokens: number | null;
+} {
+  if (!usage) return { cacheHitTokens: null, cacheMissTokens: null, reasoningTokens: null };
+  const cacheHit = numberOrNull(usage.prompt_cache_hit_tokens);
+  const cacheMiss = numberOrNull(usage.prompt_cache_miss_tokens);
+  const details = usage.completion_tokens_details;
+  const reasoning =
+    details && typeof details === "object"
+      ? numberOrNull((details as Record<string, unknown>).reasoning_tokens)
+      : null;
+  return {
+    cacheHitTokens: cacheHit,
+    cacheMissTokens: cacheMiss,
+    reasoningTokens: reasoning,
+  };
+}
+
+function numberOrNull(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
 export async function recordJobRetry(jobType: string) {

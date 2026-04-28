@@ -1,9 +1,18 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { episodes, translations, novelGlossaryEntries } from "@/lib/db/schema";
-import { env, resolveModel } from "@/lib/env";
+import {
+  episodes,
+  translations,
+  novelGlossaryEntries,
+  translationSessions,
+} from "@/lib/db/schema";
+import { buildOpenRouterRoutingBody, env, resolveModel } from "@/lib/env";
 import { logger } from "@/lib/logger";
-import { recordOpenRouterError, recordOpenRouterUsage } from "@/lib/ops-metrics";
+import {
+  extractUsageTelemetry,
+  recordOpenRouterError,
+  recordOpenRouterUsage,
+} from "@/lib/ops-metrics";
 import { estimateCost } from "./cost-estimation";
 import { importGlossaryEntries, type GlossaryEntryInput } from "./glossary-entries";
 import { promoteSuggestedEntries } from "./promote-suggested-entries";
@@ -65,6 +74,34 @@ export async function extractGlossaryTerms(
     return { imported: 0, skipped: 0 };
   }
 
+  // Skip per-episode extraction during an active session.
+  //
+  // Auto-promote and import both mutate `novel_glossary_entries`, which
+  // shifts the rendered glossary text the next translation request sees.
+  // For DeepSeek's prefix cache (≈50× cheaper input on hits), the system
+  // prompt must be byte-identical across episodes within a bulk run.
+  // advanceSession() now enqueues a single glossary.refresh job at
+  // session-end so the deferred information is not lost.
+  const [activeSession] = await db
+    .select({ id: translationSessions.id })
+    .from(translationSessions)
+    .where(
+      and(
+        eq(translationSessions.novelId, payload.novelId),
+        eq(translationSessions.status, "active"),
+      ),
+    )
+    .limit(1);
+
+  if (activeSession) {
+    logger.info("Active session — deferring glossary.extract for cache stability", {
+      novelId: payload.novelId,
+      episodeNumber: payload.episodeNumber,
+      sessionId: activeSession.id,
+    });
+    return { imported: 0, skipped: 0 };
+  }
+
   // Stage-2 cold-start: validate suggested (bootstrap-mined) entries
   // against this episode's pair. Reinforces matches and decays
   // mistranslated guesses. Pure DB work, no LLM call. Failures here
@@ -96,41 +133,53 @@ export async function extractGlossaryTerms(
 
   const existingTerms = new Set(allExisting.map((e) => e.termJa));
 
-  // Recency-pruned context: only pass confirmed+suggested that appeared within
-  // RECENT_CONTEXT_EPISODES of this episode, plus a capped sample of rejected.
-  const recencyFloor = payload.episodeNumber - RECENT_CONTEXT_EPISODES;
-  const confirmedRecent = allExisting.filter(
-    (e) =>
-      e.status === "confirmed" &&
-      (e.sourceEpisodeNumber == null || e.sourceEpisodeNumber >= recencyFloor),
-  );
-  const suggestedRecent = allExisting.filter(
-    (e) =>
-      e.status === "suggested" &&
-      (e.sourceEpisodeNumber == null || e.sourceEpisodeNumber >= recencyFloor),
-  );
-  const rejectedAll = allExisting.filter((e) => e.status === "rejected");
-  const rejectedSample = rejectedAll.slice(-REJECTED_CONTEXT_LIMIT);
+  // Stable, lexicographic ordering across episodes — recency filter would
+  // shift the prefix every episode and bust DeepSeek's prefix cache. The
+  // model still gets the full dedup hint; ordering is purely for cache.
+  // Reference: see RECENT_CONTEXT_EPISODES / REJECTED_CONTEXT_LIMIT — we
+  // keep them as imports to avoid a churny rename, but no longer apply
+  // recency-windowing here.
+  void RECENT_CONTEXT_EPISODES;
+  const sortByJa = (a: { termJa: string }, b: { termJa: string }) =>
+    a.termJa.localeCompare(b.termJa);
+  const confirmedAll = allExisting
+    .filter((e) => e.status === "confirmed")
+    .sort(sortByJa);
+  const suggestedAll = allExisting
+    .filter((e) => e.status === "suggested")
+    .sort(sortByJa);
+  const rejectedAll = allExisting
+    .filter((e) => e.status === "rejected")
+    .sort(sortByJa);
+  const rejectedSample = rejectedAll.slice(0, REJECTED_CONTEXT_LIMIT);
 
   const contextParts: string[] = [];
-  if (confirmedRecent.length > 0) {
+  if (confirmedAll.length > 0) {
     contextParts.push(
-      `\n\nConfirmed glossary entries (recent — do not re-extract):\n${confirmedRecent.map((e) => e.termJa).join(", ")}`,
+      `Confirmed glossary entries (do not re-extract):\n${confirmedAll.map((e) => e.termJa).join(", ")}`,
     );
   }
-  if (suggestedRecent.length > 0) {
+  if (suggestedAll.length > 0) {
     contextParts.push(
-      `\n\nSuggested entries (recent — skip):\n${suggestedRecent.map((e) => e.termJa).join(", ")}`,
+      `Suggested entries (skip):\n${suggestedAll.map((e) => e.termJa).join(", ")}`,
     );
   }
   if (rejectedSample.length > 0) {
     const moreCount = rejectedAll.length - rejectedSample.length;
     const moreSuffix = moreCount > 0 ? ` (+${moreCount} older rejected)` : "";
     contextParts.push(
-      `\n\nRejected entries (do NOT re-suggest):\n${rejectedSample.map((e) => e.termJa).join(", ")}${moreSuffix}`,
+      `Rejected entries (do NOT re-suggest):\n${rejectedSample.map((e) => e.termJa).join(", ")}${moreSuffix}`,
     );
   }
-  const existingList = contextParts.join("");
+  // Move the existing-glossary listing to the END of the system message.
+  // System prompt + listing now make a stable prefix for THIS novel
+  // across all episodes, so DeepSeek's KV cache hits on every extraction
+  // after the first. Source + translation stay in the user message
+  // (always per-episode unique).
+  const systemContent =
+    contextParts.length > 0
+      ? `${EXTRACTION_SYSTEM_PROMPT}\n\n${contextParts.join("\n\n")}`
+      : EXTRACTION_SYSTEM_PROMPT;
 
   // Truncate texts for cost control
   const sourceTruncated = episode.sourceText.slice(0, EXTRACT_TRUNC_CHARS);
@@ -148,10 +197,10 @@ export async function extractGlossaryTerms(
     body: JSON.stringify({
       model: resolveModel("extraction"),
       messages: [
-        { role: "system", content: EXTRACTION_SYSTEM_PROMPT },
+        { role: "system", content: systemContent },
         {
           role: "user",
-          content: `Episode ${payload.episodeNumber}:\n\n[Japanese]\n${sourceTruncated}\n\n[Korean Translation]\n${translatedTruncated}${existingList}`,
+          content: `[Japanese]\n${sourceTruncated}\n\n[Korean Translation]\n${translatedTruncated}\n\n(Episode ${payload.episodeNumber})`,
         },
       ],
       temperature: 0.1,
@@ -161,6 +210,7 @@ export async function extractGlossaryTerms(
       // 2K tokens in practice but the cap kept biting at the edge.
       max_tokens: 4096,
       response_format: { type: "json_object" },
+      ...buildOpenRouterRoutingBody("extraction", resolveModel("extraction")),
     }),
   });
 
@@ -188,11 +238,15 @@ export async function extractGlossaryTerms(
   if (extractInputTokens != null && extractOutputTokens != null) {
     const cost = await estimateCost(resolveModel("extraction"), extractInputTokens, extractOutputTokens);
     if (cost != null) {
+      const telemetry = extractUsageTelemetry(data.usage);
       await recordOpenRouterUsage({
         operation: "glossary.extract",
         modelName: resolveModel("extraction"),
         inputTokens: extractInputTokens,
         outputTokens: extractOutputTokens,
+        cacheHitTokens: telemetry.cacheHitTokens,
+        cacheMissTokens: telemetry.cacheMissTokens,
+        reasoningTokens: telemetry.reasoningTokens,
         costUsd: cost,
       });
       logger.info("Glossary extraction cost", {
@@ -200,6 +254,7 @@ export async function extractGlossaryTerms(
         episodeNumber: payload.episodeNumber,
         inputTokens: extractInputTokens,
         outputTokens: extractOutputTokens,
+        cacheHitTokens: telemetry.cacheHitTokens,
         costUsd: cost,
       });
     }

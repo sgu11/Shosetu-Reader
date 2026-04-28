@@ -16,6 +16,9 @@ export interface TranslationResult {
   modelName: string;
   inputTokens?: number;
   outputTokens?: number;
+  cacheHitTokens?: number | null;
+  cacheMissTokens?: number | null;
+  reasoningTokens?: number | null;
   finishReason?: string;
 }
 

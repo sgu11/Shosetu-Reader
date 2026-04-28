@@ -1,9 +1,13 @@
 import { inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { titleTranslationCache } from "@/lib/db/schema";
-import { env, resolveModel } from "@/lib/env";
+import { buildOpenRouterRoutingBody, env, resolveModel } from "@/lib/env";
 import { logger } from "@/lib/logger";
-import { recordOpenRouterError, recordOpenRouterUsage } from "@/lib/ops-metrics";
+import {
+  extractUsageTelemetry,
+  recordOpenRouterError,
+  recordOpenRouterUsage,
+} from "@/lib/ops-metrics";
 import { estimateCost } from "@/modules/translation/application/cost-estimation";
 
 // 50 titles × 4096 max_tokens led to silent output truncation on novels
@@ -163,6 +167,7 @@ async function translateBatch(texts: string[]): Promise<string[]> {
           ],
           temperature: 0.3,
           max_tokens: MAX_RESPONSE_TOKENS,
+          ...buildOpenRouterRoutingBody("title", resolveModel("title")),
         }),
       });
     } catch (err) {
@@ -199,7 +204,7 @@ async function translateBatch(texts: string[]): Promise<string[]> {
 
     let data: {
       choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
-      usage?: { prompt_tokens?: number; completion_tokens?: number };
+      usage?: Record<string, unknown>;
     };
     try {
       data = await res.json();
@@ -211,16 +216,26 @@ async function translateBatch(texts: string[]): Promise<string[]> {
     }
     const content: string = data.choices?.[0]?.message?.content ?? "";
     const finishReason = data.choices?.[0]?.finish_reason;
-    const inputTokens = data.usage?.prompt_tokens;
-    const outputTokens = data.usage?.completion_tokens;
+    const inputTokens =
+      typeof data.usage?.prompt_tokens === "number"
+        ? data.usage.prompt_tokens
+        : undefined;
+    const outputTokens =
+      typeof data.usage?.completion_tokens === "number"
+        ? data.usage.completion_tokens
+        : undefined;
 
     if (inputTokens != null && outputTokens != null) {
       const costUsd = await estimateCost(resolveModel("title"), inputTokens, outputTokens);
+      const telemetry = extractUsageTelemetry(data.usage);
       await recordOpenRouterUsage({
         operation: "title-translation.batch",
         modelName: resolveModel("title"),
         inputTokens,
         outputTokens,
+        cacheHitTokens: telemetry.cacheHitTokens,
+        cacheMissTokens: telemetry.cacheMissTokens,
+        reasoningTokens: telemetry.reasoningTokens,
         costUsd,
       });
     }

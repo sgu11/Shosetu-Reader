@@ -1,9 +1,13 @@
 import { eq, and, asc } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { episodes, novelGlossaryEntries } from "@/lib/db/schema";
-import { env, resolveModel } from "@/lib/env";
+import { buildOpenRouterRoutingBody, env, resolveModel } from "@/lib/env";
 import { logger } from "@/lib/logger";
-import { recordOpenRouterError, recordOpenRouterUsage } from "@/lib/ops-metrics";
+import {
+  extractUsageTelemetry,
+  recordOpenRouterError,
+  recordOpenRouterUsage,
+} from "@/lib/ops-metrics";
 import { estimateCost } from "./cost-estimation";
 import { importGlossaryEntries, type GlossaryEntryInput } from "./glossary-entries";
 import { stratifiedEpisodeSample } from "./sample-strategy";
@@ -163,8 +167,9 @@ async function callOpenRouter(params: {
         { role: "user", content: params.userContent },
       ],
       temperature: 0.2,
-      max_tokens: 4096,
+      max_tokens: 8192,
       response_format: { type: "json_object" },
+      ...buildOpenRouterRoutingBody("bootstrap", params.modelName),
     }),
   });
 
@@ -182,11 +187,15 @@ async function callOpenRouter(params: {
   const outputTokens = data.usage?.completion_tokens;
   if (inputTokens != null && outputTokens != null) {
     costUsd = await estimateCost(params.modelName, inputTokens, outputTokens);
+    const telemetry = extractUsageTelemetry(data.usage);
     await recordOpenRouterUsage({
       operation: "glossary.bootstrap",
       modelName: params.modelName,
       inputTokens,
       outputTokens,
+      cacheHitTokens: telemetry.cacheHitTokens,
+      cacheMissTokens: telemetry.cacheMissTokens,
+      reasoningTokens: telemetry.reasoningTokens,
       costUsd,
     });
   }

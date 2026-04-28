@@ -441,8 +441,20 @@ export async function processQueuedTranslation(
     let finalTranslatedText: string;
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
+    let totalCacheHitTokens = 0;
+    let totalCacheMissTokens = 0;
+    let totalReasoningTokens = 0;
     let hasTokenInfo = true;
     let hadTruncation = false;
+    const accumulate = (r: {
+      cacheHitTokens?: number | null;
+      cacheMissTokens?: number | null;
+      reasoningTokens?: number | null;
+    }) => {
+      if (r.cacheHitTokens) totalCacheHitTokens += r.cacheHitTokens;
+      if (r.cacheMissTokens) totalCacheMissTokens += r.cacheMissTokens;
+      if (r.reasoningTokens) totalReasoningTokens += r.reasoningTokens;
+    };
 
     if (!isChunked) {
       // Single-pass translation (original path)
@@ -464,6 +476,7 @@ export async function processQueuedTranslation(
       } else {
         hasTokenInfo = false;
       }
+      accumulate(result);
     } else {
       // Chunked translation: translate sequentially with continuity context
       const translatedChunks: string[] = [];
@@ -494,6 +507,7 @@ export async function processQueuedTranslation(
         } else {
           hasTokenInfo = false;
         }
+        accumulate(result);
       }
 
       finalTranslatedText = reassembleChunks(translatedChunks);
@@ -520,6 +534,7 @@ export async function processQueuedTranslation(
         totalInputTokens += prefaceResult.inputTokens;
         totalOutputTokens += prefaceResult.outputTokens;
       }
+      accumulate(prefaceResult);
     }
 
     if (payload.afterwordText?.trim()) {
@@ -539,6 +554,7 @@ export async function processQueuedTranslation(
         totalInputTokens += afterwordResult.inputTokens;
         totalOutputTokens += afterwordResult.outputTokens;
       }
+      accumulate(afterwordResult);
     }
 
     const costUsd = hasTokenInfo
@@ -551,6 +567,9 @@ export async function processQueuedTranslation(
         modelName: provider.modelName,
         inputTokens: totalInputTokens,
         outputTokens: totalOutputTokens,
+        cacheHitTokens: totalCacheHitTokens || null,
+        cacheMissTokens: totalCacheMissTokens || null,
+        reasoningTokens: totalReasoningTokens || null,
         costUsd,
       });
     }

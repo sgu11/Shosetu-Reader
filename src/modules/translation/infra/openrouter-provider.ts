@@ -4,7 +4,8 @@ import type {
   TranslationResult,
 } from "../domain/provider";
 import { logger } from "@/lib/logger";
-import { recordOpenRouterError } from "@/lib/ops-metrics";
+import { extractUsageTelemetry, recordOpenRouterError } from "@/lib/ops-metrics";
+import { buildOpenRouterRoutingBody } from "@/lib/env";
 
 const BASE_SYSTEM_PROMPT = `You are a professional Japanese-to-Korean translator specializing in web novel (ウェブ小説) translation.
 
@@ -129,6 +130,7 @@ export class OpenRouterProvider implements TranslationProvider {
           messages,
           temperature: 0.3,
           max_tokens: currentMaxTokens,
+          ...buildOpenRouterRoutingBody("translate", this.modelName),
         }),
       });
 
@@ -151,7 +153,7 @@ export class OpenRouterProvider implements TranslationProvider {
       const raw = await res.text();
       let data: {
         choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
-        usage?: {
+        usage?: Record<string, unknown> & {
           prompt_tokens?: number;
           completion_tokens?: number;
           cached_tokens?: number;
@@ -194,14 +196,21 @@ export class OpenRouterProvider implements TranslationProvider {
         continue;
       }
 
-      // Log prompt cache metrics when available (Gemini: cached_tokens, Anthropic: cache_read_input_tokens)
-      const cachedTokens = data.usage?.cached_tokens
-        ?? data.usage?.cache_read_input_tokens
-        ?? data.usage?.prompt_tokens_details?.cached_tokens;
-      if (cachedTokens != null && cachedTokens > 0) {
+      // Provider-agnostic cache + reasoning telemetry. DeepSeek surfaces
+      // prompt_cache_hit_tokens / prompt_cache_miss_tokens; Gemini and
+      // Anthropic surface them under different keys. extractUsageTelemetry
+      // normalizes the DeepSeek convention; legacy keys are kept inline.
+      const telemetry = extractUsageTelemetry(data.usage);
+      const legacyCached =
+        data.usage?.cached_tokens ??
+        data.usage?.cache_read_input_tokens ??
+        data.usage?.prompt_tokens_details?.cached_tokens ??
+        null;
+      const cacheHitTokens = telemetry.cacheHitTokens ?? legacyCached;
+      if (cacheHitTokens != null && cacheHitTokens > 0) {
         logger.info("Prompt cache hit", {
           model: this.modelName,
-          cachedTokens,
+          cacheHitTokens,
           totalInputTokens: data.usage?.prompt_tokens,
         });
       }
@@ -212,6 +221,9 @@ export class OpenRouterProvider implements TranslationProvider {
         modelName: this.modelName,
         inputTokens: data.usage?.prompt_tokens ?? undefined,
         outputTokens: data.usage?.completion_tokens ?? undefined,
+        cacheHitTokens,
+        cacheMissTokens: telemetry.cacheMissTokens,
+        reasoningTokens: telemetry.reasoningTokens,
         finishReason,
       };
     }

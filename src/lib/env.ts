@@ -17,7 +17,7 @@ const serverEnvSchema = z.object({
     .int()
     .positive()
     .optional()
-    .default(200),
+    .default(500),
   ADMIN_API_KEY: z.string().optional(),
   TRANSLATION_COST_BUDGET_USD: z.coerce.number().positive().optional(),
   DEMO_MODE: z
@@ -59,7 +59,40 @@ if (!parsedEnv.success) {
 
 export const env = parsedEnv.data;
 
-export type ModelWorkload = "summary" | "extraction" | "title" | "default";
+export type ModelWorkload =
+  | "summary"
+  | "extraction"
+  | "title"
+  | "translate"
+  | "compare"
+  | "bootstrap"
+  | "default";
+
+export type ReasoningEffort = "off" | "low" | "high" | "xhigh";
+
+interface WorkloadProfile {
+  /** Reasoning depth — applied to DeepSeek V4 / OpenRouter normalized 'reasoning'. */
+  reasoning: ReasoningEffort;
+  /** Soft cap; per-call sites may override. */
+  maxTokens: number;
+}
+
+/**
+ * Per-workload reasoning + max_tokens defaults.
+ *
+ * Output cost dominates routine translation. Body translation runs with
+ * reasoning OFF so the model emits target text only. Glossary, bootstrap,
+ * and comparison workloads are quality-sensitive single-shots — reasoning HIGH
+ * pays for itself.
+ */
+const WORKLOAD_PROFILE: Record<Exclude<ModelWorkload, "default">, WorkloadProfile> = {
+  translate:  { reasoning: "off",  maxTokens: 4096 },
+  title:      { reasoning: "off",  maxTokens: 1024 },
+  summary:    { reasoning: "off",  maxTokens: 2048 },
+  extraction: { reasoning: "low",  maxTokens: 4096 },
+  compare:    { reasoning: "high", maxTokens: 8192 },
+  bootstrap:  { reasoning: "high", maxTokens: 8192 },
+};
 
 /**
  * Resolve the OpenRouter model for a specific workload.
@@ -70,12 +103,58 @@ export function resolveModel(workload: ModelWorkload = "default"): string {
     case "summary":
       return env.OPENROUTER_SUMMARY_MODEL || env.OPENROUTER_DEFAULT_MODEL;
     case "extraction":
+    case "bootstrap":
       return env.OPENROUTER_EXTRACTION_MODEL || env.OPENROUTER_DEFAULT_MODEL;
     case "title":
       return env.OPENROUTER_TITLE_MODEL || env.OPENROUTER_DEFAULT_MODEL;
-    default:
+    case "translate":
+    case "compare":
+    case "default":
       return env.OPENROUTER_DEFAULT_MODEL;
   }
+}
+
+export function resolveWorkloadProfile(
+  workload: ModelWorkload,
+): WorkloadProfile {
+  if (workload === "default") return WORKLOAD_PROFILE.translate;
+  return WORKLOAD_PROFILE[workload];
+}
+
+/**
+ * Provider routing hint for OpenRouter requests. Pinning DeepSeek-family
+ * models to the `DeepSeek` provider keeps requests on the same KV-cache
+ * domain so prefix-stable prompts hit DeepSeek's automatic context cache
+ * (50× cheaper input). Without pinning, OpenRouter may route to a fallback
+ * host that doesn't share the cache.
+ */
+export function providerHintFor(modelName: string): { only: string[] } | undefined {
+  if (modelName.startsWith("deepseek/")) {
+    return { only: ["DeepSeek"] };
+  }
+  return undefined;
+}
+
+/**
+ * Translate a workload profile + model name into the OpenRouter body
+ * fragment (reasoning + provider) for chat-completions.
+ */
+export function buildOpenRouterRoutingBody(
+  workload: ModelWorkload,
+  modelName: string,
+): Record<string, unknown> {
+  const profile = resolveWorkloadProfile(workload);
+  const body: Record<string, unknown> = {};
+  const provider = providerHintFor(modelName);
+  if (provider) body.provider = provider;
+  if (profile.reasoning !== "off") {
+    body.reasoning = { effort: profile.reasoning };
+  } else if (modelName.startsWith("deepseek/")) {
+    // Explicitly disable thinking on DeepSeek so V4 doesn't burn output
+    // tokens on chain-of-thought during routine body translation.
+    body.reasoning = { exclude: true };
+  }
+  return body;
 }
 
 export function getPublicRuntimeConfig() {
