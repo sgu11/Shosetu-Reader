@@ -159,3 +159,5 @@ function getClientIp(req: NextRequest): string {
 }
 
 export const __getClientIpForTest = getClientIp;
+export const __rateLimitInMemoryForTest = rateLimitInMemory;
+export const __resetBucketsForTest = () => buckets.clear();
