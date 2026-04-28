@@ -30,6 +30,12 @@ export default function SettingsPage() {
   const [globalPrompt, setGlobalPrompt] = useState("");
   const [defaultGlobalPrompt, setDefaultGlobalPrompt] = useState("");
   const [favoriteModels, setFavoriteModels] = useState<string[]>([]);
+  const [workloadOverrides, setWorkloadOverrides] = useState<
+    Partial<Record<"translate" | "title" | "summary" | "extraction" | "compare" | "bootstrap", string>>
+  >({});
+  const [workloadDefaults, setWorkloadDefaults] = useState<
+    Partial<Record<"translate" | "title" | "summary" | "extraction" | "compare" | "bootstrap", string>>
+  >({});
   const [adultContentEnabled, setAdultContentEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -42,6 +48,12 @@ export default function SettingsPage() {
         setGlobalPrompt(data.globalPrompt ?? "");
         setDefaultGlobalPrompt(data.defaultGlobalPrompt ?? "");
         setFavoriteModels(Array.isArray(data.favoriteModels) ? data.favoriteModels : []);
+        if (data.workloadOverrides && typeof data.workloadOverrides === "object") {
+          setWorkloadOverrides(data.workloadOverrides);
+        }
+        if (data.workloadDefaults && typeof data.workloadDefaults === "object") {
+          setWorkloadDefaults(data.workloadDefaults);
+        }
       })
       .catch(() => {});
     fetch("/api/settings")
@@ -93,8 +105,36 @@ export default function SettingsPage() {
     });
   }, []);
 
+  const setWorkloadOverride = useCallback(
+    (
+      key: "translate" | "title" | "summary" | "extraction" | "compare" | "bootstrap",
+      value: string,
+    ) => {
+      setWorkloadOverrides((prev) => {
+        const next = { ...prev };
+        const trimmed = value.trim();
+        if (trimmed.length === 0) {
+          delete next[key];
+        } else {
+          next[key] = trimmed;
+        }
+        fetch("/api/translation-settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workloadOverrides: next }),
+        }).catch(() => {});
+        return next;
+      });
+    },
+    [],
+  );
+
   function applyDefaultPrompt() {
     setGlobalPrompt(defaultGlobalPrompt);
+  }
+
+  function shortModel(name: string): string {
+    return name.split("/").pop() ?? name;
   }
 
   return (
@@ -182,6 +222,67 @@ export default function SettingsPage() {
                       onToggleFavorite={toggleFavorite}
                       placeholder={t("settings.searchModels")}
                     />
+                  </div>
+                </SettingRow>
+
+                <SettingRow
+                  label={t("settings.workloadModels")}
+                  hint={t("settings.workloadModelsDesc")}
+                >
+                  <div className="flex flex-col gap-3">
+                    {(
+                      [
+                        { key: "translate", label: t("settings.workloadTranslate"), hint: t("settings.workloadTranslateHint") },
+                        { key: "title", label: t("settings.workloadTitle"), hint: t("settings.workloadTitleHint") },
+                        { key: "summary", label: t("settings.workloadSummary"), hint: t("settings.workloadSummaryHint") },
+                        { key: "extraction", label: t("settings.workloadExtraction"), hint: t("settings.workloadExtractionHint") },
+                        { key: "compare", label: t("settings.workloadCompare"), hint: t("settings.workloadCompareHint") },
+                        { key: "bootstrap", label: t("settings.workloadBootstrap"), hint: t("settings.workloadBootstrapHint") },
+                      ] as const
+                    ).map(({ key, label, hint }) => {
+                      const override = workloadOverrides[key] ?? "";
+                      const fallback = workloadDefaults[key] ?? modelName;
+                      const effective = override || fallback;
+                      return (
+                        <div
+                          key={key}
+                          className="flex flex-col gap-2 rounded-md border border-border bg-surface px-4 py-3"
+                        >
+                          <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-[13px] font-medium text-foreground">
+                                {label}
+                              </span>
+                              <span className="text-[11px] text-muted">{hint}</span>
+                            </div>
+                            <span
+                              className="font-mono text-[10px] uppercase tracking-wider text-muted"
+                              title={effective}
+                            >
+                              {override
+                                ? `→ ${shortModel(effective)}`
+                                : `${t("settings.workloadInherit")} · ${shortModel(fallback)}`}
+                            </span>
+                          </div>
+                          <ModelPicker
+                            value={override}
+                            onChange={(v) => setWorkloadOverride(key, v)}
+                            favorites={favoriteModels}
+                            onToggleFavorite={toggleFavorite}
+                            placeholder={t("settings.workloadInheritPlaceholder")}
+                          />
+                          {override ? (
+                            <button
+                              type="button"
+                              onClick={() => setWorkloadOverride(key, "")}
+                              className="self-start font-mono text-[10.5px] uppercase tracking-wider text-muted transition-colors hover:text-foreground"
+                            >
+                              ↺ {t("settings.workloadReset")}
+                            </button>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
                 </SettingRow>
 

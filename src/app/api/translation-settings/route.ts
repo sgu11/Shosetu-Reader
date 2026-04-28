@@ -8,6 +8,30 @@ import { isKnownOpenRouterModel } from "@/lib/openrouter/models-cache";
 import { DEFAULT_GLOBAL_PROMPT } from "@/modules/translation/domain/default-prompt";
 import { resolveUserId } from "@/modules/identity/application/resolve-user-context";
 
+const WORKLOAD_KEYS = [
+  "translate",
+  "title",
+  "summary",
+  "extraction",
+  "compare",
+  "bootstrap",
+] as const;
+type WorkloadKey = (typeof WORKLOAD_KEYS)[number];
+
+function sanitizeWorkloadOverrides(
+  raw: unknown,
+): Partial<Record<WorkloadKey, string>> | null {
+  if (!raw || typeof raw !== "object") return null;
+  const out: Partial<Record<WorkloadKey, string>> = {};
+  for (const key of WORKLOAD_KEYS) {
+    const v = (raw as Record<string, unknown>)[key];
+    if (typeof v === "string" && v.trim().length > 0) {
+      out[key] = v.trim();
+    }
+  }
+  return out;
+}
+
 export async function GET() {
   try {
     const userId = await resolveUserId();
@@ -18,6 +42,7 @@ export async function GET() {
         modelName: translationSettings.modelName,
         globalPrompt: translationSettings.globalPrompt,
         favoriteModels: translationSettings.favoriteModels,
+        workloadOverrides: translationSettings.workloadOverrides,
       })
       .from(translationSettings)
       .where(eq(translationSettings.userId, userId))
@@ -28,6 +53,15 @@ export async function GET() {
       globalPrompt: settings?.globalPrompt ?? "",
       defaultGlobalPrompt: DEFAULT_GLOBAL_PROMPT,
       favoriteModels: settings?.favoriteModels ?? [],
+      workloadOverrides: settings?.workloadOverrides ?? {},
+      workloadDefaults: {
+        translate: env.OPENROUTER_TRANSLATE_MODEL ?? env.OPENROUTER_DEFAULT_MODEL,
+        title: env.OPENROUTER_TITLE_MODEL ?? env.OPENROUTER_DEFAULT_MODEL,
+        summary: env.OPENROUTER_SUMMARY_MODEL ?? env.OPENROUTER_DEFAULT_MODEL,
+        extraction: env.OPENROUTER_EXTRACTION_MODEL ?? env.OPENROUTER_DEFAULT_MODEL,
+        compare: env.OPENROUTER_COMPARE_MODEL ?? env.OPENROUTER_DEFAULT_MODEL,
+        bootstrap: env.OPENROUTER_BOOTSTRAP_MODEL ?? env.OPENROUTER_DEFAULT_MODEL,
+      },
     });
   } catch (err) {
     logger.error("Failed to fetch translation settings", {
@@ -47,7 +81,7 @@ export async function PUT(req: NextRequest) {
     const db = getDb();
     const body = await req.json();
 
-    const { modelName, globalPrompt, favoriteModels } = body;
+    const { modelName, globalPrompt, favoriteModels, workloadOverrides } = body;
 
     // Validate length limits
     if (typeof modelName === "string" && modelName.length > MAX_MODEL_NAME_LENGTH) {
@@ -73,6 +107,7 @@ export async function PUT(req: NextRequest) {
       modelName?: string;
       globalPrompt?: string;
       favoriteModels?: string[];
+      workloadOverrides?: Partial<Record<WorkloadKey, string>> | null;
     } = {};
     if (typeof modelName === "string" && modelName.trim()) {
       const normalizedModelName = modelName.trim();
@@ -99,6 +134,29 @@ export async function PUT(req: NextRequest) {
       ).slice(0, MAX_FAVORITES);
       update.favoriteModels = cleaned;
     }
+    if (workloadOverrides !== undefined) {
+      const sanitized = sanitizeWorkloadOverrides(workloadOverrides);
+      if (sanitized) {
+        // Validate each model exists in the OpenRouter catalog.
+        for (const value of Object.values(sanitized)) {
+          if (value && value.length > MAX_MODEL_NAME_LENGTH) {
+            return NextResponse.json(
+              { error: `Workload model name too long (max ${MAX_MODEL_NAME_LENGTH})` },
+              { status: 400 },
+            );
+          }
+          if (value && !(await isKnownOpenRouterModel(value))) {
+            return NextResponse.json(
+              { error: `Unknown OpenRouter model in workload override: ${value}` },
+              { status: 400 },
+            );
+          }
+        }
+        update.workloadOverrides = sanitized;
+      } else if (workloadOverrides === null) {
+        update.workloadOverrides = null;
+      }
+    }
 
     if (existing) {
       await db
@@ -111,6 +169,7 @@ export async function PUT(req: NextRequest) {
         modelName: update.modelName ?? env.OPENROUTER_DEFAULT_MODEL,
         globalPrompt: update.globalPrompt ?? "",
         favoriteModels: update.favoriteModels ?? [],
+        workloadOverrides: update.workloadOverrides ?? null,
       });
     }
 

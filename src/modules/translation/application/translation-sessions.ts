@@ -84,12 +84,23 @@ export async function createTranslationSession(
     .select({
       modelName: translationSettings.modelName,
       globalPrompt: translationSettings.globalPrompt,
+      workloadOverrides: translationSettings.workloadOverrides,
     })
     .from(translationSettings)
     .where(eq(translationSettings.userId, userId))
     .limit(1);
 
-  const modelName = modelNameOverride ?? settings?.modelName ?? env.OPENROUTER_DEFAULT_MODEL;
+  // User can override the body-translation model under workloadOverrides.translate.
+  // Falls back to settings.modelName, then OPENROUTER_DEFAULT_MODEL.
+  const userTranslateOverride =
+    settings?.workloadOverrides && typeof settings.workloadOverrides === "object"
+      ? (settings.workloadOverrides as Record<string, string>).translate
+      : undefined;
+  const modelName =
+    modelNameOverride ??
+    userTranslateOverride ??
+    settings?.modelName ??
+    env.OPENROUTER_DEFAULT_MODEL;
   const globalPrompt = settings?.globalPrompt ?? "";
 
   // Load glossary version
@@ -504,6 +515,7 @@ export async function generateSessionSummary(
     .select({
       contextSummary: translationSessions.contextSummary,
       modelName: translationSessions.modelName,
+      creatorUserId: translationSessions.creatorUserId,
     })
     .from(translationSessions)
     .where(eq(translationSessions.id, payload.sessionId))
@@ -531,7 +543,22 @@ Given the previous rolling summary and the latest episode, produce a REPLACEMENT
 Keep the summary under 2000 characters. Write in English for cross-model compatibility.
 Output ONLY the summary text, no headers or labels.`;
 
-  const summaryModel = resolveModel("summary");
+  // Honour the session creator's per-workload override when available;
+  // background workers without a creator fall through to the env default.
+  let summaryModel = resolveModel("summary");
+  if (session.creatorUserId) {
+    const [creatorSettings] = await db
+      .select({ workloadOverrides: translationSettings.workloadOverrides })
+      .from(translationSettings)
+      .where(eq(translationSettings.userId, session.creatorUserId))
+      .limit(1);
+    const override =
+      creatorSettings?.workloadOverrides &&
+      typeof creatorSettings.workloadOverrides === "object"
+        ? (creatorSettings.workloadOverrides as Record<string, string>).summary
+        : undefined;
+    if (override) summaryModel = override;
+  }
 
   try {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {

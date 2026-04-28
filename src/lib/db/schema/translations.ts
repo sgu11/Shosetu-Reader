@@ -102,6 +102,15 @@ export const translationSettings = pgTable("translation_settings", {
     .array()
     .notNull()
     .default(sql`'{}'::text[]`),
+  /**
+   * Optional per-workload model overrides. Schema:
+   *   { translate?: string, title?: string, summary?: string,
+   *     extraction?: string, compare?: string, bootstrap?: string }
+   * Falls back to env-level OPENROUTER_*_MODEL when absent or null,
+   * which itself falls back to OPENROUTER_DEFAULT_MODEL.
+   */
+  workloadOverrides: jsonb("workload_overrides")
+    .$type<Partial<Record<string, string>>>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
