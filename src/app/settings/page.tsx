@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Eyebrow } from "@/components/eyebrow";
 import { ModelPicker } from "@/components/model-picker";
+import { FontStackPicker } from "@/components/settings/font-stack-picker";
+import { ReaderStepperTrio } from "@/components/settings/reader-stepper-trio";
 import { SettingRow } from "@/components/settings/setting-row";
 import { SidebarNav, type SettingsSection } from "@/components/settings/sidebar-nav";
 import { ThemePicker } from "@/components/settings/theme-picker";
@@ -106,7 +108,7 @@ export default function SettingsPage() {
           </h1>
         </header>
 
-        <div className="grid gap-8 md:grid-cols-[180px_1fr] md:gap-12">
+        <div className="grid gap-10 md:grid-cols-[200px_1fr] md:gap-14">
           <SidebarNav current={section} />
 
           <div className="min-w-0">
@@ -131,13 +133,15 @@ export default function SettingsPage() {
                 </SettingRow>
                 <SettingRow
                   label={t("settings.readerSettings")}
-                  hint={t("settings.fontFamily")}
+                  hint={t("settings.readerSettingsDesc")}
                 >
-                  <p className="text-xs text-muted">
-                    {t("settings.fontSize")} · {t("settings.lineHeight")} ·{" "}
-                    {t("settings.contentWidth")} —{" "}
-                    <span className="font-mono">Aa</span> in reader chrome.
-                  </p>
+                  <ReaderStepperTrio />
+                </SettingRow>
+                <SettingRow
+                  label={t("settings.fontFamily")}
+                  hint={t("settings.fontFamilyDesc")}
+                >
+                  <FontStackPicker />
                 </SettingRow>
                 <SettingRow
                   label={t("settings.adultContent")}

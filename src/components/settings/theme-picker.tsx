@@ -6,21 +6,25 @@ import type { TranslationKey } from "@/lib/i18n";
 
 type Theme = "paper" | "sepia" | "night" | "system";
 
-interface Swatch {
+interface ThemeMeta {
   value: Theme;
   label: TranslationKey;
-  background: string;
+  en: string;
+  bg: string;
+  ink: string;
 }
 
-const SWATCHES: Swatch[] = [
+const THEMES: ThemeMeta[] = [
   {
     value: "system",
     label: "settings.themeSystem",
-    background: "linear-gradient(90deg, #faf6ef 50%, #14110d 50%)",
+    en: "System",
+    bg: "linear-gradient(135deg, #faf6ef 50%, #14110d 50%)",
+    ink: "var(--foreground)",
   },
-  { value: "paper", label: "settings.themePaper", background: "#faf6ef" },
-  { value: "sepia", label: "settings.themeSepia", background: "#f1e2c7" },
-  { value: "night", label: "settings.themeNight", background: "#14110d" },
+  { value: "paper", label: "settings.themePaper", en: "Paper", bg: "#fbf6e9", ink: "#2b2620" },
+  { value: "sepia", label: "settings.themeSepia", en: "Sepia", bg: "#ecdec0", ink: "#3a2f20" },
+  { value: "night", label: "settings.themeNight", en: "Night", bg: "#15140f", ink: "#d8d2c2" },
 ];
 
 function getSnapshot(): Theme {
@@ -52,31 +56,63 @@ function applyTheme(theme: Theme) {
   document.documentElement.setAttribute("data-theme", theme);
 }
 
+function MiniPagePreview({ ink }: { ink: string }) {
+  return (
+    <div className="relative h-[70px] overflow-hidden">
+      <div
+        className="absolute left-3 top-3 h-1 w-12 rounded-[1px]"
+        style={{ background: ink, opacity: 0.85 }}
+      />
+      {[0, 5, 10, 15, 20].map((y) => (
+        <div
+          key={y}
+          className="absolute left-3"
+          style={{
+            top: 24 + y,
+            right: 16 + (y === 10 ? 16 : y === 20 ? 36 : 6),
+            height: 1.5,
+            background: ink,
+            opacity: 0.4,
+            borderRadius: 1,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function ThemePicker() {
   const { t } = useTranslation();
   const current = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   return (
-    <div className="flex flex-wrap gap-2.5">
-      {SWATCHES.map((s) => {
-        const active = current === s.value;
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-3.5">
+      {THEMES.map((th) => {
+        const active = current === th.value;
         return (
           <button
-            key={s.value}
+            key={th.value}
             type="button"
-            onClick={() => applyTheme(s.value)}
-            className={`w-20 rounded-md p-2 transition-colors ${
+            onClick={() => applyTheme(th.value)}
+            className={`flex flex-col gap-2.5 rounded-[4px] border bg-surface p-3 text-left transition-all ${
               active
-                ? "border-2 border-accent"
-                : "border border-border-strong hover:border-foreground"
+                ? "border-foreground shadow-[0_0_0_3px_var(--accent-soft)]"
+                : "border-border hover:border-foreground"
             }`}
           >
             <div
-              className="mb-1.5 h-8 rounded-[3px] border border-border-subtle"
-              style={{ background: s.background }}
-            />
-            <div className="text-center text-[11px] text-secondary">
-              {t(s.label)}
+              className="overflow-hidden rounded-[2px]"
+              style={{ background: th.bg, color: th.ink }}
+            >
+              <MiniPagePreview ink={th.ink} />
+            </div>
+            <div className="flex flex-col gap-[2px]">
+              <span className="text-[11px] font-medium text-secondary">
+                {t(th.label)}
+              </span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
+                {th.en}
+              </span>
             </div>
           </button>
         );
