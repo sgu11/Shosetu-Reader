@@ -12,9 +12,11 @@ import { translateNovelMetadata } from "./translate-novel-metadata";
 export interface RegisterNovelResult {
   novel: {
     id: string;
+    sourceSite: SourceSite;
     sourceId: string;
     sourceUrl: string;
     titleJa: string;
+    titleKo: string | null;
     authorName: string | null;
     summaryJa: string | null;
     isCompleted: boolean | null;
@@ -79,9 +81,11 @@ async function upsertNovel(
     return {
       novel: {
         id: updated.id,
+        sourceSite: updated.sourceSite as SourceSite,
         sourceId: updated.sourceId,
         sourceUrl: updated.sourceUrl,
         titleJa: updated.titleJa,
+        titleKo: updated.titleKo ?? null,
         authorName: updated.authorName,
         summaryJa: updated.summaryJa,
         isCompleted: updated.isCompleted,
@@ -119,9 +123,11 @@ async function upsertNovel(
   return {
     novel: {
       id: inserted.id,
+      sourceSite: inserted.sourceSite as SourceSite,
       sourceId: inserted.sourceId,
       sourceUrl: inserted.sourceUrl,
       titleJa: inserted.titleJa,
+      titleKo: inserted.titleKo ?? null,
       authorName: inserted.authorName,
       summaryJa: inserted.summaryJa,
       isCompleted: inserted.isCompleted,
